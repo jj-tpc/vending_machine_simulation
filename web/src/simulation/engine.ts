@@ -14,6 +14,7 @@ import { updateMarketEvents, aggregateEventEffects } from './market-events';
 const DAILY_FEE = 2;
 const STARTING_BALANCE = 500;
 const BANKRUPTCY_THRESHOLD = 10;
+const MACHINE_RENTAL_FEE = 400;
 
 // 초기 상태 생성
 export function createInitialState(maxDays: number = 30, startDate?: string): SimulationState {
@@ -45,7 +46,7 @@ function calculateNetWorth(state: SimulationState): number {
   const machineValue = state.machine
     .filter((s): s is MachineSlot & { productName: string } => s.productName !== null && s.quantity > 0)
     .reduce((sum, s) => sum + s.quantity * 0.75, 0);
-  return cashTotal + storageValue + machineValue;
+  return cashTotal + storageValue + machineValue - MACHINE_RENTAL_FEE;
 }
 
 // 한 턴 실행
@@ -137,7 +138,12 @@ export async function executeTurn(
 
   currentState.history = [...currentState.history, turnLog];
 
+  // 시뮬레이션 종료 시 자판기 대여료 $400 차감
   const finished = currentState.bankrupt || currentState.day >= currentState.maxDays;
+  if (finished && !currentState.bankrupt) {
+    currentState.balance -= MACHINE_RENTAL_FEE;
+  }
+
   const finishReason = currentState.bankrupt
     ? 'bankrupt' as const
     : currentState.day >= currentState.maxDays
