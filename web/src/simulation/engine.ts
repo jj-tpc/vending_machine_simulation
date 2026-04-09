@@ -3,6 +3,7 @@ import {
   TurnLog,
   TurnResponse,
   MachineSlot,
+  LlmVendor,
 } from './types';
 import { generateMarketCondition } from './market';
 import { createEmptyMachine } from './vending-machine';
@@ -53,7 +54,9 @@ function calculateNetWorth(state: SimulationState): number {
 export async function executeTurn(
   state: SimulationState,
   model: string,
-  agentPrompt: string
+  agentPrompt: string,
+  vendor: LlmVendor = 'anthropic',
+  apiKey?: string
 ): Promise<TurnResponse> {
   let currentState = { ...state, day: state.day + 1 };
   const { suppliers } = currentState;
@@ -91,8 +94,8 @@ export async function executeTurn(
   const currentSeason = recentMarkets.length > 0 ? recentMarkets[recentMarkets.length - 1].season : 'spring';
 
   const [market, updatedMarketEvents] = await Promise.all([
-    generateMarketCondition(currentState.day, currentState.startDate, recentMarkets),
-    updateMarketEvents(currentState.marketEvents, currentState.day, currentSeason),
+    generateMarketCondition(currentState.day, currentState.startDate, recentMarkets, vendor, apiKey),
+    updateMarketEvents(currentState.marketEvents, currentState.day, currentSeason, vendor, apiKey),
   ]);
 
   currentState.marketEvents = updatedMarketEvents;
@@ -101,8 +104,8 @@ export async function executeTurn(
   // 5. 아침 리포트 생성 (공개 이벤트 포함)
   const morningReport = generateMorningReport(currentState, market, deliveryResult.delivered);
 
-  // 6. Claude 에이전트 실행
-  const agentResult = await runAgentTurn(currentState, morningReport, model, agentPrompt);
+  // 6. AI 에이전트 실행
+  const agentResult = await runAgentTurn(currentState, morningReport, model, agentPrompt, vendor, apiKey);
   currentState = agentResult.state;
 
   // 7. 고객 구매 시뮬레이션 (이벤트 효과 반영)

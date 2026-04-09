@@ -1,7 +1,6 @@
-import Anthropic from '@anthropic-ai/sdk';
-import { MarketEvent, MarketEventEffects, MarketCondition } from './types';
-
-const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
+import { SystemMessage, HumanMessage } from '@langchain/core/messages';
+import { createHelperModel } from './llm';
+import { MarketEvent, MarketEventEffects, LlmVendor } from './types';
 
 // ============================================================
 // 공개 이벤트 (7일마다) - UI에 신문처럼 표시
@@ -10,7 +9,9 @@ const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 async function generatePublicEvent(
   day: number,
   season: string,
-  recentEvents: MarketEvent[]
+  recentEvents: MarketEvent[],
+  vendor: LlmVendor = 'anthropic',
+  apiKey?: string
 ): Promise<MarketEvent> {
   const recentHeadlines = recentEvents
     .filter(e => e.visible)
@@ -19,11 +20,9 @@ async function generatePublicEvent(
     .join(', ');
 
   try {
-    const client = new Anthropic();
-    const response = await client.messages.create({
-      model: HAIKU_MODEL,
-      max_tokens: 400,
-      system: `당신은 자판기 사업과 관련된 시장 뉴스를 생성하는 시뮬레이터입니다.
+    const llm = createHelperModel(vendor, apiKey!, 400);
+    const response = await llm.invoke([
+      new SystemMessage(`당신은 자판기 사업과 관련된 시장 뉴스를 생성하는 시뮬레이터입니다.
 현실적이고 자판기 운영에 영향을 줄 수 있는 뉴스를 만드세요.
 
 예시 주제: 음료 트렌드 변화, 원자재 가격 변동, 소비자 선호도 변화, 날씨/계절 이벤트,
@@ -46,14 +45,11 @@ effects 범위:
 - demandMultiplier: 0.5~2.0 (카테고리별 수요 변화)
 - customerTraffic: 0.5~1.5 (전체 유동인구)
 - deliveryDelayGlobal: 0~2 (전체 배송 지연일)
-- priceShift: -0.2~0.3 (도매가 변동률, 예: 0.1이면 10% 상승)`,
-      messages: [{
-        role: 'user',
-        content: `${day}일차, 계절: ${season}${recentHeadlines ? `\n최근 뉴스: ${recentHeadlines}\n(이전과 다른 주제로 생성)` : ''}`,
-      }],
-    });
+- priceShift: -0.2~0.3 (도매가 변동률, 예: 0.1이면 10% 상승)`),
+      new HumanMessage(`${day}일차, 계절: ${season}${recentHeadlines ? `\n최근 뉴스: ${recentHeadlines}\n(이전과 다른 주제로 생성)` : ''}`),
+    ]);
 
-    const text = response.content[0].type === 'text' ? response.content[0].text : '';
+    const text = typeof response.content === 'string' ? response.content : '';
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
@@ -82,7 +78,9 @@ effects 범위:
 async function generateHiddenEvent(
   day: number,
   season: string,
-  recentEvents: MarketEvent[]
+  recentEvents: MarketEvent[],
+  vendor: LlmVendor = 'anthropic',
+  apiKey?: string
 ): Promise<MarketEvent> {
   const recentHidden = recentEvents
     .filter(e => !e.visible)
@@ -91,11 +89,9 @@ async function generateHiddenEvent(
     .join(', ');
 
   try {
-    const client = new Anthropic();
-    const response = await client.messages.create({
-      model: HAIKU_MODEL,
-      max_tokens: 400,
-      system: `당신은 자판기 사업 환경에 영향을 미치는 숨겨진 시장 변동을 생성합니다.
+    const llm = createHelperModel(vendor, apiKey!, 400);
+    const response = await llm.invoke([
+      new SystemMessage(`당신은 자판기 사업 환경에 영향을 미치는 숨겨진 시장 변동을 생성합니다.
 이것들은 에이전트에게 직접 보이지 않지만 판매량, 배송, 가격에 영향을 줍니다.
 에이전트는 결과를 관찰하면서 간접적으로 파악해야 합니다.
 
@@ -116,14 +112,11 @@ async function generateHiddenEvent(
   }
 }
 
-효과는 미묘하되 의미 있게 (수요 0.7~1.4, 유동인구 0.7~1.3 범위)`,
-      messages: [{
-        role: 'user',
-        content: `${day}일차, 계절: ${season}${recentHidden ? `\n최근 숨겨진 이벤트: ${recentHidden}\n(다른 주제로)` : ''}`,
-      }],
-    });
+효과는 미묘하되 의미 있게 (수요 0.7~1.4, 유동인구 0.7~1.3 범위)`),
+      new HumanMessage(`${day}일차, 계절: ${season}${recentHidden ? `\n최근 숨겨진 이벤트: ${recentHidden}\n(다른 주제로)` : ''}`),
+    ]);
 
-    const text = response.content[0].type === 'text' ? response.content[0].text : '';
+    const text = typeof response.content === 'string' ? response.content : '';
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
@@ -206,7 +199,9 @@ function fallbackHiddenEvent(day: number): MarketEvent {
 export async function updateMarketEvents(
   currentEvents: MarketEvent[],
   day: number,
-  season: string
+  season: string,
+  vendor: LlmVendor = 'anthropic',
+  apiKey?: string
 ): Promise<MarketEvent[]> {
   // 만료된 이벤트 제거
   const events = currentEvents.filter(e => e.expiresDay > day);
@@ -218,8 +213,8 @@ export async function updateMarketEvents(
 
   // 공개 + 숨김 이벤트를 병렬 생성
   const promises: Promise<MarketEvent>[] = [];
-  if (needPublic) promises.push(generatePublicEvent(day, season, events));
-  if (needHidden) promises.push(generateHiddenEvent(day, season, events));
+  if (needPublic) promises.push(generatePublicEvent(day, season, events, vendor, apiKey));
+  if (needHidden) promises.push(generateHiddenEvent(day, season, events, vendor, apiKey));
 
   const newEvents = await Promise.all(promises);
   return [...events, ...newEvents];

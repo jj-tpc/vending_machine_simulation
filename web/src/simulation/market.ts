@@ -1,5 +1,6 @@
-import Anthropic from '@anthropic-ai/sdk';
-import { Weather, Season, DayOfWeek, MarketCondition } from './types';
+import { SystemMessage, HumanMessage } from '@langchain/core/messages';
+import { createHelperModel } from './llm';
+import { Weather, Season, DayOfWeek, MarketCondition, LlmVendor } from './types';
 
 const DAYS_OF_WEEK: DayOfWeek[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
@@ -22,13 +23,12 @@ function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
 }
 
-// Haiku 모델로 시장 상황 결정
-const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
-
 export async function generateMarketCondition(
   day: number,
   startDate: string,
-  recentHistory?: MarketCondition[]
+  recentHistory?: MarketCondition[],
+  vendor: LlmVendor = 'anthropic',
+  apiKey?: string
 ): Promise<MarketCondition> {
   const date = addDays(startDate, day - 1);
   const month = date.getMonth() + 1;
@@ -45,18 +45,13 @@ export async function generateMarketCondition(
     .join(', ');
 
   try {
-    const client = new Anthropic();
-    const response = await client.messages.create({
-      model: HAIKU_MODEL,
-      max_tokens: 20,
-      system: '날씨를 결정하는 시뮬레이터입니다. 반드시 sunny, cloudy, rainy, hot, cold 중 하나만 출력하세요. 다른 말은 하지 마세요. 현실적인 날씨 변화를 반영하되, 같은 날씨가 3일 이상 지속되면 변화를 줘야 합니다.',
-      messages: [{
-        role: 'user',
-        content: `날짜: ${dateStr} (${dayOfWeek}), 계절: ${season}, 월: ${month}월${recentWeather ? `\n최근 날씨: ${recentWeather}\n같은 날씨가 계속되고 있다면 변화를 주세요.` : ''}\n\n오늘의 날씨는?`,
-      }],
-    });
+    const llm = createHelperModel(vendor, apiKey!, 20);
+    const response = await llm.invoke([
+      new SystemMessage('날씨를 결정하는 시뮬레이터입니다. 반드시 sunny, cloudy, rainy, hot, cold 중 하나만 출력하세요. 다른 말은 하지 마세요. 현실적인 날씨 변화를 반영하되, 같은 날씨가 3일 이상 지속되면 변화를 줘야 합니다.'),
+      new HumanMessage(`날짜: ${dateStr} (${dayOfWeek}), 계절: ${season}, 월: ${month}월${recentWeather ? `\n최근 날씨: ${recentWeather}\n같은 날씨가 계속되고 있다면 변화를 주세요.` : ''}\n\n오늘의 날씨는?`),
+    ]);
 
-    const text = (response.content[0].type === 'text' ? response.content[0].text : '')
+    const text = (typeof response.content === 'string' ? response.content : '')
       .trim().toLowerCase();
 
     // 유효한 날씨인지 확인

@@ -1,8 +1,32 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { SimulationState, TurnLog, TurnResponse, StartResponse, ModelInfo } from '@/simulation/types';
+import { SimulationState, TurnLog, TurnResponse, StartResponse, ModelInfo, LlmVendor } from '@/simulation/types';
 import { DEFAULT_AGENT_PROMPT } from '@/simulation/agent';
+
+const DEFAULT_MODELS: Record<LlmVendor, ModelInfo[]> = {
+  anthropic: [
+    { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', createdAt: '' },
+    { id: 'claude-haiku-4-20250414', name: 'Claude Haiku 4', createdAt: '' },
+  ],
+  openai: [
+    { id: 'gpt-4o', name: 'GPT-4o', createdAt: '' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', createdAt: '' },
+    { id: 'gpt-4.1', name: 'GPT-4.1', createdAt: '' },
+    { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', createdAt: '' },
+  ],
+  gemini: [
+    { id: 'gemini-2.5-pro-preview-05-06', name: 'Gemini 2.5 Pro', createdAt: '' },
+    { id: 'gemini-2.5-flash-preview-04-17', name: 'Gemini 2.5 Flash', createdAt: '' },
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', createdAt: '' },
+  ],
+};
+
+const DEFAULT_MODEL: Record<LlmVendor, string> = {
+  anthropic: 'claude-sonnet-4-20250514',
+  openai: 'gpt-4o',
+  gemini: 'gemini-2.5-flash-preview-04-17',
+};
 
 interface UseSimulationReturn {
   state: SimulationState | null;
@@ -13,6 +37,10 @@ interface UseSimulationReturn {
   finished: boolean;
   finishReason: string | null;
   // 설정
+  vendor: LlmVendor;
+  setVendor: (v: LlmVendor) => void;
+  apiKey: string;
+  setApiKey: (k: string) => void;
   models: ModelInfo[];
   modelsLoading: boolean;
   selectedModel: string;
@@ -38,32 +66,52 @@ export function useSimulation(): UseSimulationReturn {
   const [finishReason, setFinishReason] = useState<string | null>(null);
 
   // 설정
-  const [models, setModels] = useState<ModelInfo[]>([]);
-  const [modelsLoading, setModelsLoading] = useState(true);
-  const [selectedModel, setSelectedModel] = useState('claude-sonnet-4-20250514');
+  const [vendor, setVendorState] = useState<LlmVendor>('anthropic');
+  const [apiKey, setApiKey] = useState('');
+  const [models, setModels] = useState<ModelInfo[]>(DEFAULT_MODELS.anthropic);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL.anthropic);
   const [agentPrompt, setAgentPrompt] = useState(DEFAULT_AGENT_PROMPT);
 
-  // 모델 목록 로드
+  // vendor 변경 시 모델 목록 및 기본 모델 갱신
+  const setVendor = useCallback((v: LlmVendor) => {
+    setVendorState(v);
+    setModels(DEFAULT_MODELS[v]);
+    setSelectedModel(DEFAULT_MODEL[v]);
+  }, []);
+
+  // API 키가 있을 때 Anthropic 모델 목록 동적 로드
   useEffect(() => {
+    if (vendor !== 'anthropic' || !apiKey) {
+      setModels(DEFAULT_MODELS[vendor]);
+      return;
+    }
+
+    let cancelled = false;
     async function fetchModels() {
+      setModelsLoading(true);
       try {
-        const res = await fetch('/api/models');
+        const res = await fetch('/api/models', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ vendor, apiKey }),
+        });
         const data = await res.json();
-        if (data.models && data.models.length > 0) {
+        if (!cancelled && data.models && data.models.length > 0) {
           setModels(data.models);
-          // 첫 번째 모델을 기본으로 선택 (최신순)
           if (!data.models.find((m: ModelInfo) => m.id === selectedModel)) {
             setSelectedModel(data.models[0].id);
           }
         }
       } catch {
-        // 폴백은 API에서 처리
+        if (!cancelled) setModels(DEFAULT_MODELS[vendor]);
       } finally {
-        setModelsLoading(false);
+        if (!cancelled) setModelsLoading(false);
       }
     }
     fetchModels();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => { cancelled = true; };
+  }, [vendor, apiKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startSimulation = useCallback(async (maxDays: number = 30) => {
     setIsLoading(true);
@@ -104,7 +152,7 @@ export function useSimulation(): UseSimulationReturn {
       const res = await fetch('/api/turn', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ state, model: selectedModel, agentPrompt }),
+        body: JSON.stringify({ state, model: selectedModel, agentPrompt, vendor, apiKey }),
       });
 
       if (!res.ok) {
@@ -126,7 +174,7 @@ export function useSimulation(): UseSimulationReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [state, finished, selectedModel, agentPrompt]);
+  }, [state, finished, selectedModel, agentPrompt, vendor, apiKey]);
 
   const skipTurns = useCallback(async (count: number) => {
     if (!state || finished) return;
@@ -144,7 +192,7 @@ export function useSimulation(): UseSimulationReturn {
         const res = await fetch('/api/turn', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ state: currentState, model: selectedModel, agentPrompt }),
+          body: JSON.stringify({ state: currentState, model: selectedModel, agentPrompt, vendor, apiKey }),
         });
 
         if (!res.ok) {
@@ -178,7 +226,7 @@ export function useSimulation(): UseSimulationReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [state, finished, selectedModel, agentPrompt]);
+  }, [state, finished, selectedModel, agentPrompt, vendor, apiKey]);
 
   const reset = useCallback(() => {
     setState(null);
@@ -198,6 +246,10 @@ export function useSimulation(): UseSimulationReturn {
     error,
     finished,
     finishReason,
+    vendor,
+    setVendor,
+    apiKey,
+    setApiKey,
     models,
     modelsLoading,
     selectedModel,

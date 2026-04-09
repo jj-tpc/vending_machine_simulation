@@ -13,6 +13,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing simulation state' }, { status: 400 });
     }
 
+    if (!body.apiKey) {
+      return NextResponse.json({ error: 'API key is required' }, { status: 400 });
+    }
+
     if (body.state.bankrupt) {
       return NextResponse.json({ error: 'Simulation has ended (bankrupt)' }, { status: 400 });
     }
@@ -23,8 +27,10 @@ export async function POST(request: Request) {
 
     const model = body.model || 'claude-sonnet-4-20250514';
     const agentPrompt = body.agentPrompt || DEFAULT_AGENT_PROMPT;
+    const vendor = body.vendor || 'anthropic';
+    const apiKey = body.apiKey;
 
-    const result: TurnResponse = await executeTurn(body.state, model, agentPrompt);
+    const result: TurnResponse = await executeTurn(body.state, model, agentPrompt, vendor, apiKey);
     return NextResponse.json(result);
   } catch (error) {
     console.error('Turn execution error:', error);

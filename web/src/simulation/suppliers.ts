@@ -1,7 +1,6 @@
-import Anthropic from '@anthropic-ai/sdk';
-import { Supplier, SupplierState, SupplierType, Order, StorageItem, Email, SupplierProduct } from './types';
-
-const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
+import { SystemMessage, HumanMessage, AIMessage, BaseMessage } from '@langchain/core/messages';
+import { createHelperModel } from './llm';
+import { Supplier, SupplierState, SupplierType, Order, StorageItem, Email, SupplierProduct, LlmVendor } from './types';
 
 // ============================================================
 // 랜덤 이름 생성 풀
@@ -435,7 +434,9 @@ async function getSupplierDecision(
   agentEmail: Email,
   agentBalance: number,
   currentDay: number,
-  emailHistory: Email[]
+  emailHistory: Email[],
+  vendor: LlmVendor = 'anthropic',
+  apiKey?: string
 ): Promise<SupplierDecision> {
   const hiddenStrategy = HIDDEN_STRATEGIES[supplier.type];
   const personality = pickRandom(PERSONALITY_POOL[supplier.type]);
@@ -501,65 +502,67 @@ priceModifierChange: -0.05~+0.10 / relationshipChange: -1,0,+1
 <decision>{"action":"inquiry_reply","priceModifierChange":0,"relationshipChange":1,"supplierNote":"신규 고객"}</decision>`;
 
   try {
-    const client = new Anthropic();
-
     // 이전 대화 히스토리를 multi-turn messages로 구성 (최근 10개)
     const recentHistory = emailHistory.slice(-10);
-    const conversationMessages: Anthropic.MessageParam[] = [];
+    const conversationMessages: BaseMessage[] = [];
 
     for (const email of recentHistory) {
       if (email.type === 'received' && email.from === supplier.email) {
-        // 공급업체가 보낸 메일 → assistant 역할
-        conversationMessages.push({
-          role: 'assistant',
-          content: `[이전에 내가 보낸 답장]\n제목: ${email.subject}\n\n${email.body}`,
-        });
+        // 공급업체가 보낸 메일 → AIMessage (공급업체가 LLM 역할)
+        conversationMessages.push(
+          new AIMessage(`[이전에 내가 보낸 답장]\n제목: ${email.subject}\n\n${email.body}`)
+        );
       } else if (email.type === 'sent' && email.to === supplier.email) {
-        // 에이전트가 보낸 메일 → user 역할
-        conversationMessages.push({
-          role: 'user',
-          content: `[고객 이메일]\n제목: ${email.subject}\n\n${email.body}`,
-        });
+        // 에이전트가 보낸 메일 → HumanMessage (에이전트가 고객 역할)
+        conversationMessages.push(
+          new HumanMessage(`[고객 이메일]\n제목: ${email.subject}\n\n${email.body}`)
+        );
       }
     }
 
-    // 연속된 같은 role 메시지 병합 (API 제약 대응)
-    const mergedMessages: Anthropic.MessageParam[] = [];
+    // 연속된 같은 타입 메시지 병합 (API 제약 대응)
+    const mergedMessages: BaseMessage[] = [];
     for (const msg of conversationMessages) {
-      if (mergedMessages.length > 0 && mergedMessages[mergedMessages.length - 1].role === msg.role) {
-        mergedMessages[mergedMessages.length - 1] = {
-          role: msg.role,
-          content: mergedMessages[mergedMessages.length - 1].content + '\n\n---\n\n' + msg.content,
-        };
+      if (
+        mergedMessages.length > 0 &&
+        mergedMessages[mergedMessages.length - 1].constructor === msg.constructor
+      ) {
+        const prev = mergedMessages[mergedMessages.length - 1];
+        if (msg instanceof HumanMessage) {
+          mergedMessages[mergedMessages.length - 1] = new HumanMessage(
+            prev.content + '\n\n---\n\n' + msg.content
+          );
+        } else {
+          mergedMessages[mergedMessages.length - 1] = new AIMessage(
+            prev.content + '\n\n---\n\n' + msg.content
+          );
+        }
       } else {
-        mergedMessages.push({ ...msg });
+        mergedMessages.push(msg);
       }
     }
 
-    // 마지막 메시지(오늘 받은 이메일)가 user 역할이어야 함
-    // 이미 히스토리에 현재 이메일이 포함되어 있을 수 있으므로, 마지막이 user가 아니면 추가
+    // 마지막 메시지(오늘 받은 이메일)가 HumanMessage여야 함
     const currentEmailMsg = `고객으로부터 새 이메일이 왔습니다. 이전 대화 맥락을 고려해서 당신답게 대응하세요.\n\n제목: ${agentEmail.subject}\n\n${agentEmail.body}`;
 
-    if (mergedMessages.length === 0 || mergedMessages[mergedMessages.length - 1].role !== 'user') {
-      mergedMessages.push({ role: 'user', content: currentEmailMsg });
+    if (mergedMessages.length === 0 || !(mergedMessages[mergedMessages.length - 1] instanceof HumanMessage)) {
+      mergedMessages.push(new HumanMessage(currentEmailMsg));
     } else {
-      // 마지막 user 메시지를 현재 이메일로 교체 (중복 방지)
-      mergedMessages[mergedMessages.length - 1] = { role: 'user', content: currentEmailMsg };
+      mergedMessages[mergedMessages.length - 1] = new HumanMessage(currentEmailMsg);
     }
 
-    // messages가 user로 시작해야 함
-    if (mergedMessages.length > 0 && mergedMessages[0].role !== 'user') {
-      mergedMessages.unshift({ role: 'user', content: '[대화 시작]' });
+    // messages가 HumanMessage로 시작해야 함
+    if (mergedMessages.length > 0 && !(mergedMessages[0] instanceof HumanMessage)) {
+      mergedMessages.unshift(new HumanMessage('[대화 시작]'));
     }
 
-    const response = await client.messages.create({
-      model: HAIKU_MODEL,
-      max_tokens: 4000,
-      system: systemPrompt,
-      messages: mergedMessages,
-    });
+    const llm = createHelperModel(vendor, apiKey!, 4000);
+    const response = await llm.invoke([
+      new SystemMessage(systemPrompt),
+      ...mergedMessages,
+    ]);
 
-    const text = response.content[0].type === 'text' ? response.content[0].text : '';
+    const text = typeof response.content === 'string' ? response.content : '';
     const decision = parseSupplierResponse(text, supplier);
     return decision;
   } catch (error) {
@@ -628,7 +631,9 @@ export async function processAgentEmail(
   balance: number,
   supplierStates: Record<string, SupplierState>,
   suppliers: Supplier[],
-  allEmails: Email[]
+  allEmails: Email[],
+  vendor: LlmVendor = 'anthropic',
+  apiKey?: string
 ): Promise<{
   replyEmail: Email;
   order?: Order;
@@ -678,7 +683,7 @@ export async function processAgentEmail(
     (e.type === 'received' && e.from === supplier.email)
   );
 
-  const decision = await getSupplierDecision(supplier, sState, agentEmail, balance, currentDay, supplierEmailHistory);
+  const decision = await getSupplierDecision(supplier, sState, agentEmail, balance, currentDay, supplierEmailHistory, vendor, apiKey);
 
   let order: Order | undefined;
   let newBalance: number | undefined;

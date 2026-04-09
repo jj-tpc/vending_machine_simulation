@@ -1,5 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk';
-import { SimulationState, AgentAction, MarketCondition, Order, Email } from './types';
+import { SystemMessage, HumanMessage, AIMessage, ToolMessage, BaseMessage } from '@langchain/core/messages';
+import { tool } from '@langchain/core/tools';
+import { z } from 'zod';
+import { createMainModel } from './llm';
+import { SimulationState, AgentAction, MarketCondition, Order, Email, LlmVendor } from './types';
 import { machineInventorySummary, storageSummary, stockMachine, setSlotPrice, collectCash } from './vending-machine';
 import { supplierDirectory, processAgentEmail, ordersSummary } from './suppliers';
 
@@ -65,81 +68,67 @@ export function buildSystemPrompt(agentPrompt: string, suppliers: import('./type
   return `${agentPrompt}\n\n${buildFixedPrompt(suppliersDir)}`;
 }
 
-// Tool definitions for Claude
-const TOOLS: Anthropic.Tool[] = [
-  {
-    name: 'check_balance',
-    description: '현재 보유 현금과 자판기 내 미수거 현금을 확인합니다',
-    input_schema: { type: 'object' as const, properties: {}, required: [] },
-  },
-  {
-    name: 'get_machine_inventory',
-    description: '자판기 재고 현황을 확인합니다 (12슬롯의 상품명, 수량, 가격)',
-    input_schema: { type: 'object' as const, properties: {}, required: [] },
-  },
-  {
-    name: 'get_storage_inventory',
-    description: '창고에 보관 중인 상품을 확인합니다 (자판기에 넣을 수 있는 재고)',
-    input_schema: { type: 'object' as const, properties: {}, required: [] },
-  },
-  {
-    name: 'send_email',
-    description: '이메일을 보냅니다. 공급업체에 상품 문의나 주문을 할 때 사용합니다. 주문 시 본문에 상품명과 수량을 명확히 적으세요.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        to: { type: 'string', description: '수신자 이메일 주소 (예: sales@freshdrinks.com)' },
-        subject: { type: 'string', description: '이메일 제목' },
-        body: { type: 'string', description: '이메일 본문' },
-      },
-      required: ['to', 'subject', 'body'],
-    },
-  },
-  {
-    name: 'read_inbox',
-    description: '수신함을 확인합니다. 공급업체 답장, 주문 확인, 배송 알림 등을 확인할 수 있습니다.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        unread_only: { type: 'boolean', description: '읽지 않은 메일만 표시 (기본: true)' },
-      },
-      required: [],
-    },
-  },
-  {
-    name: 'stock_machine',
-    description: '창고의 상품을 자판기 특정 슬롯에 넣습니다. 0-1행은 소형, 2-3행은 대형 상품용입니다.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        productName: { type: 'string', description: '넣을 상품명' },
-        row: { type: 'number', description: '행 (0-3). 0-1행 소형, 2-3행 대형.' },
-        col: { type: 'number', description: '열 (0-2)' },
-        quantity: { type: 'number', description: '넣을 수량' },
-        price: { type: 'number', description: '소비자 판매가 (예: 1.50)' },
-      },
-      required: ['productName', 'row', 'col', 'quantity', 'price'],
-    },
-  },
-  {
-    name: 'set_price',
-    description: '특정 슬롯의 상품 가격을 변경합니다',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        row: { type: 'number', description: '행 (0-3)' },
-        col: { type: 'number', description: '열 (0-2)' },
-        price: { type: 'number', description: '새 판매가' },
-      },
-      required: ['row', 'col', 'price'],
-    },
-  },
-  {
-    name: 'collect_cash',
-    description: '자판기에 쌓인 판매 수익금을 모두 수거합니다',
-    input_schema: { type: 'object' as const, properties: {}, required: [] },
-  },
-];
+// Tool schemas for bindTools() — execution is handled separately via executeTool()
+function getToolSchemas() {
+  return [
+    tool(async () => '', {
+      name: 'check_balance',
+      description: '현재 보유 현금과 자판기 내 미수거 현금을 확인합니다',
+      schema: z.object({}),
+    }),
+    tool(async () => '', {
+      name: 'get_machine_inventory',
+      description: '자판기 재고 현황을 확인합니다 (12슬롯의 상품명, 수량, 가격)',
+      schema: z.object({}),
+    }),
+    tool(async () => '', {
+      name: 'get_storage_inventory',
+      description: '창고에 보관 중인 상품을 확인합니다 (자판기에 넣을 수 있는 재고)',
+      schema: z.object({}),
+    }),
+    tool(async () => '', {
+      name: 'send_email',
+      description: '이메일을 보냅니다. 공급업체에 상품 문의나 주문을 할 때 사용합니다. 주문 시 본문에 상품명과 수량을 명확히 적으세요.',
+      schema: z.object({
+        to: z.string().describe('수신자 이메일 주소 (예: sales@freshdrinks.com)'),
+        subject: z.string().describe('이메일 제목'),
+        body: z.string().describe('이메일 본문'),
+      }),
+    }),
+    tool(async () => '', {
+      name: 'read_inbox',
+      description: '수신함을 확인합니다. 공급업체 답장, 주문 확인, 배송 알림 등을 확인할 수 있습니다.',
+      schema: z.object({
+        unread_only: z.boolean().optional().describe('읽지 않은 메일만 표시 (기본: true)'),
+      }),
+    }),
+    tool(async () => '', {
+      name: 'stock_machine',
+      description: '창고의 상품을 자판기 특정 슬롯에 넣습니다. 0-1행은 소형, 2-3행은 대형 상품용입니다.',
+      schema: z.object({
+        productName: z.string().describe('넣을 상품명'),
+        row: z.number().describe('행 (0-3). 0-1행 소형, 2-3행 대형.'),
+        col: z.number().describe('열 (0-2)'),
+        quantity: z.number().describe('넣을 수량'),
+        price: z.number().describe('소비자 판매가 (예: 1.50)'),
+      }),
+    }),
+    tool(async () => '', {
+      name: 'set_price',
+      description: '특정 슬롯의 상품 가격을 변경합니다',
+      schema: z.object({
+        row: z.number().describe('행 (0-3)'),
+        col: z.number().describe('열 (0-2)'),
+        price: z.number().describe('새 판매가'),
+      }),
+    }),
+    tool(async () => '', {
+      name: 'collect_cash',
+      description: '자판기에 쌓인 판매 수익금을 모두 수거합니다',
+      schema: z.object({}),
+    }),
+  ];
+}
 
 // 이메일 ID 카운터
 let sentEmailCounter = 0;
@@ -148,7 +137,9 @@ let sentEmailCounter = 0;
 async function executeTool(
   toolName: string,
   input: Record<string, unknown>,
-  state: SimulationState
+  state: SimulationState,
+  vendor: LlmVendor = 'anthropic',
+  apiKey?: string
 ): Promise<{ result: string; state: SimulationState }> {
   switch (toolName) {
     case 'check_balance': {
@@ -181,9 +172,9 @@ async function executeTool(
 
       let newState = { ...state, emails: [...state.emails, sentEmail] };
 
-      // 공급업체 응답 처리 (Haiku가 공급업체 페르소나로 독자적 판단)
+      // 공급업체 응답 처리 (헬퍼 모델이 공급업체 페르소나로 독자적 판단)
       const { replyEmail, order, newBalance, updatedSupplierStates } = await processAgentEmail(
-        sentEmail, state.day, newState.balance, newState.supplierStates, state.suppliers, newState.emails
+        sentEmail, state.day, newState.balance, newState.supplierStates, state.suppliers, newState.emails, vendor, apiKey
       );
 
       newState.emails = [...newState.emails, replyEmail];
@@ -338,100 +329,100 @@ export function generateMorningReport(
   return parts.join('\n');
 }
 
-// Claude 에이전트 실행 (한 턴)
+// AI 에이전트 실행 (한 턴)
 export async function runAgentTurn(
   state: SimulationState,
   morningReport: string,
   model: string,
-  agentPrompt: string
+  agentPrompt: string,
+  vendor: LlmVendor = 'anthropic',
+  apiKey?: string
 ): Promise<{ state: SimulationState; thinking: string; actions: AgentAction[] }> {
-  const client = new Anthropic();
+  const llm = createMainModel(vendor, apiKey!, model);
+  const tools = getToolSchemas();
+  const modelWithTools = llm.bindTools!(tools);
+
   const actions: AgentAction[] = [];
   let thinking = '';
   let currentState = { ...state };
   const systemPrompt = buildSystemPrompt(agentPrompt, state.suppliers);
 
+  // Build messages from conversation history
   const recentHistory = currentState.conversationHistory.slice(-6);
-
-  const messages: Anthropic.MessageParam[] = [
-    ...recentHistory.map(m => ({
-      role: m.role as 'user' | 'assistant',
-      content: m.content as string,
-    })),
-    { role: 'user', content: morningReport },
+  const messages: BaseMessage[] = [
+    new SystemMessage(systemPrompt),
+    ...recentHistory.map(m =>
+      m.role === 'user'
+        ? new HumanMessage(typeof m.content === 'string' ? m.content : JSON.stringify(m.content))
+        : new AIMessage(typeof m.content === 'string' ? m.content : JSON.stringify(m.content))
+    ),
+    new HumanMessage(morningReport),
   ];
 
-  const MAX_TOOL_CALLS = 8; // 이메일 송수신 포함해서 넉넉하게
+  const READ_ONLY_TOOLS = new Set(['check_balance', 'get_machine_inventory', 'get_storage_inventory', 'read_inbox']);
+  const MAX_TOOL_CALLS = 8;
   let toolCallCount = 0;
 
   while (toolCallCount < MAX_TOOL_CALLS) {
-    const response = await client.messages.create({
-      model,
-      max_tokens: 1024,
-      system: systemPrompt,
-      tools: TOOLS,
-      messages,
-    });
+    const response = await modelWithTools.invoke(messages);
 
-    for (const block of response.content) {
-      if (block.type === 'text') {
-        thinking += (thinking ? '\n' : '') + block.text;
+    // Extract thinking text
+    if (typeof response.content === 'string' && response.content) {
+      thinking += (thinking ? '\n' : '') + response.content;
+    } else if (Array.isArray(response.content)) {
+      for (const block of response.content) {
+        if (typeof block === 'string') {
+          thinking += (thinking ? '\n' : '') + block;
+        } else if (typeof block === 'object' && 'text' in block && (block as Record<string, unknown>).type === 'text') {
+          thinking += (thinking ? '\n' : '') + (block as Record<string, unknown>).text;
+        }
       }
     }
 
-    const toolUseBlocks = response.content.filter(b => b.type === 'tool_use');
-
-    if (toolUseBlocks.length === 0 || response.stop_reason === 'end_turn') {
-      messages.push({ role: 'assistant', content: response.content as unknown as string });
+    // Check for tool calls
+    const toolCalls = response.tool_calls || [];
+    if (toolCalls.length === 0) {
+      messages.push(response);
       break;
     }
 
-    messages.push({ role: 'assistant', content: response.content as unknown as string });
+    messages.push(response);
 
-    // 읽기 전용 도구와 상태 변경 도구를 분리
-    const READ_ONLY_TOOLS = new Set(['check_balance', 'get_machine_inventory', 'get_storage_inventory', 'read_inbox']);
-    const readOnlyBlocks = toolUseBlocks.filter(b => b.type === 'tool_use' && READ_ONLY_TOOLS.has(b.name));
-    const mutatingBlocks = toolUseBlocks.filter(b => b.type === 'tool_use' && !READ_ONLY_TOOLS.has(b.name));
+    // Separate read-only vs mutating tool calls
+    const readOnlyCalls = toolCalls.filter(tc => READ_ONLY_TOOLS.has(tc.name));
+    const mutatingCalls = toolCalls.filter(tc => !READ_ONLY_TOOLS.has(tc.name));
 
-    const toolResults: Anthropic.ToolResultBlockParam[] = [];
-
-    // 읽기 전용 도구: 병렬 실행 (상태 변경 없음)
-    if (readOnlyBlocks.length > 0) {
+    // Read-only: parallel execution
+    if (readOnlyCalls.length > 0) {
       const readResults = await Promise.all(
-        readOnlyBlocks.map(async (block) => {
-          if (block.type !== 'tool_use') return null;
+        readOnlyCalls.map(async (tc) => {
           const { result, state: newState } = await executeTool(
-            block.name, block.input as Record<string, unknown>, currentState
+            tc.name, tc.args as Record<string, unknown>, currentState, vendor, apiKey
           );
-          // read_inbox는 읽음 처리로 state를 변경하므로 반영
-          if (block.name === 'read_inbox') currentState = newState;
-          return { block, result };
+          if (tc.name === 'read_inbox') currentState = newState;
+          return { tc, result };
         })
       );
       for (const r of readResults) {
-        if (!r) continue;
-        actions.push({ tool: r.block.name, input: r.block.input as Record<string, unknown>, result: r.result });
-        toolResults.push({ type: 'tool_result', tool_use_id: r.block.id, content: r.result });
+        actions.push({ tool: r.tc.name, input: r.tc.args as Record<string, unknown>, result: r.result });
+        messages.push(new ToolMessage({ content: r.result, tool_call_id: r.tc.id! }));
         toolCallCount++;
       }
     }
 
-    // 상태 변경 도구: 순차 실행 (send_email은 Haiku 호출 포함)
-    for (const block of mutatingBlocks) {
-      if (block.type === 'tool_use') {
-        const { result, state: newState } = await executeTool(
-          block.name, block.input as Record<string, unknown>, currentState
-        );
-        currentState = newState;
-        actions.push({ tool: block.name, input: block.input as Record<string, unknown>, result });
-        toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: result });
-        toolCallCount++;
-      }
+    // Mutating: sequential execution
+    for (const tc of mutatingCalls) {
+      const { result, state: newState } = await executeTool(
+        tc.name, tc.args as Record<string, unknown>, currentState, vendor, apiKey
+      );
+      currentState = newState;
+      actions.push({ tool: tc.name, input: tc.args as Record<string, unknown>, result });
+      messages.push(new ToolMessage({ content: result, tool_call_id: tc.id! }));
+      toolCallCount++;
     }
-
-    messages.push({ role: 'user', content: toolResults });
   }
 
+  // Update conversation history (simplified to strings)
   currentState.conversationHistory = [
     ...currentState.conversationHistory,
     { role: 'user', content: morningReport },

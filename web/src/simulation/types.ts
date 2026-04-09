@@ -183,6 +183,9 @@ export interface ContentBlock {
   content?: string;
 }
 
+// --- LLM Vendor ---
+export type LlmVendor = 'anthropic' | 'openai' | 'gemini';
+
 // --- Model Info ---
 export interface ModelInfo {
   id: string;
@@ -211,6 +214,8 @@ export interface TurnRequest {
   state: SimulationState;
   model: string;
   agentPrompt: string;
+  vendor: LlmVendor;
+  apiKey: string;
 }
 
 export interface TurnResponse {

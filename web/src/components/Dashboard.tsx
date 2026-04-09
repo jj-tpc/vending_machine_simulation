@@ -20,6 +20,10 @@ export default function Dashboard() {
     error,
     finished,
     finishReason,
+    vendor,
+    setVendor,
+    apiKey,
+    setApiKey,
     models,
     modelsLoading,
     selectedModel,
@@ -49,7 +53,7 @@ export default function Dashboard() {
           Vending Machine Simulation
         </h1>
         <p className="text-gray-500 text-xs mt-0.5">
-          Powered by Claude AI Agent &middot; Based on Vending-Bench
+          Powered by AI Agent &middot; Based on Vending-Bench
         </p>
       </div>
 
@@ -88,6 +92,10 @@ export default function Dashboard() {
               modelsLoading={modelsLoading}
               selectedModel={selectedModel}
               onSelectModel={setSelectedModel}
+              vendor={vendor}
+              onSelectVendor={setVendor}
+              apiKey={apiKey}
+              onChangeApiKey={setApiKey}
               agentPrompt={agentPrompt}
               onChangePrompt={setAgentPrompt}
               disabled={state.day > 0}
@@ -128,6 +136,10 @@ export default function Dashboard() {
               modelsLoading={modelsLoading}
               selectedModel={selectedModel}
               onSelectModel={setSelectedModel}
+              vendor={vendor}
+              onSelectVendor={setVendor}
+              apiKey={apiKey}
+              onChangeApiKey={setApiKey}
               agentPrompt={agentPrompt}
               onChangePrompt={setAgentPrompt}
               disabled={false}
@@ -139,8 +151,8 @@ export default function Dashboard() {
               Vending Machine Simulation
             </h2>
             <p className="text-gray-500 max-w-md text-sm">
-              Claude AI 에이전트가 자판기 사업을 경영합니다.
-              왼쪽에서 모델과 에이전트 성격을 설정한 후,
+              AI 에이전트가 자판기 사업을 경영합니다.
+              왼쪽에서 LLM 제공자, API 키, 모델, 에이전트 성격을 설정한 후,
               상단에서 시뮬레이션 기간을 선택하세요.
             </p>
           </div>
