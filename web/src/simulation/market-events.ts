@@ -11,7 +11,9 @@ async function generatePublicEvent(
   season: string,
   recentEvents: MarketEvent[],
   vendor: LlmVendor = 'anthropic',
-  apiKey?: string
+  apiKey?: string,
+  dateStr?: string,
+  weather?: string
 ): Promise<MarketEvent> {
   const recentHeadlines = recentEvents
     .filter(e => e.visible)
@@ -46,7 +48,7 @@ effects 범위:
 - customerTraffic: 0.5~1.5 (전체 유동인구)
 - deliveryDelayGlobal: 0~2 (전체 배송 지연일)
 - priceShift: -0.2~0.3 (도매가 변동률, 예: 0.1이면 10% 상승)`),
-      new HumanMessage(`${day}일차, 계절: ${season}${recentHeadlines ? `\n최근 뉴스: ${recentHeadlines}\n(이전과 다른 주제로 생성)` : ''}`),
+      new HumanMessage(`${day}일차, 날짜: ${dateStr || '미정'}, 계절: ${season}, 날씨: ${weather || '미정'}${recentHeadlines ? `\n최근 뉴스: ${recentHeadlines}\n(이전과 다른 주제로 생성하되, 현재 날짜와 계절, 날씨를 반영하세요)` : '\n현재 날짜와 계절, 날씨에 맞는 뉴스를 생성하세요.'}`),
     ]);
 
     const text = typeof response.content === 'string' ? response.content : '';
@@ -80,7 +82,9 @@ async function generateHiddenEvent(
   season: string,
   recentEvents: MarketEvent[],
   vendor: LlmVendor = 'anthropic',
-  apiKey?: string
+  apiKey?: string,
+  dateStr?: string,
+  weather?: string
 ): Promise<MarketEvent> {
   const recentHidden = recentEvents
     .filter(e => !e.visible)
@@ -113,7 +117,7 @@ async function generateHiddenEvent(
 }
 
 효과는 미묘하되 의미 있게 (수요 0.7~1.4, 유동인구 0.7~1.3 범위)`),
-      new HumanMessage(`${day}일차, 계절: ${season}${recentHidden ? `\n최근 숨겨진 이벤트: ${recentHidden}\n(다른 주제로)` : ''}`),
+      new HumanMessage(`${day}일차, 날짜: ${dateStr || '미정'}, 계절: ${season}, 날씨: ${weather || '미정'}${recentHidden ? `\n최근 숨겨진 이벤트: ${recentHidden}\n(다른 주제로, 현재 날짜와 계절, 날씨를 반영하세요)` : '\n현재 날짜와 계절, 날씨에 맞는 이벤트를 생성하세요.'}`),
     ]);
 
     const text = typeof response.content === 'string' ? response.content : '';
@@ -201,7 +205,9 @@ export async function updateMarketEvents(
   day: number,
   season: string,
   vendor: LlmVendor = 'anthropic',
-  apiKey?: string
+  apiKey?: string,
+  dateStr?: string,
+  weather?: string
 ): Promise<MarketEvent[]> {
   // 만료된 이벤트 제거
   const events = currentEvents.filter(e => e.expiresDay > day);
@@ -211,10 +217,16 @@ export async function updateMarketEvents(
 
   if (!needPublic && !needHidden) return events;
 
-  // 공개 + 숨김 이벤트를 병렬 생성
+  // 공개 이벤트: 1개 60%, 2개 35%, 3개 5%
   const promises: Promise<MarketEvent>[] = [];
-  if (needPublic) promises.push(generatePublicEvent(day, season, events, vendor, apiKey));
-  if (needHidden) promises.push(generateHiddenEvent(day, season, events, vendor, apiKey));
+  if (needPublic) {
+    const roll = Math.random();
+    const publicCount = roll < 0.60 ? 1 : roll < 0.95 ? 2 : 3;
+    for (let i = 0; i < publicCount; i++) {
+      promises.push(generatePublicEvent(day, season, events, vendor, apiKey, dateStr, weather));
+    }
+  }
+  if (needHidden) promises.push(generateHiddenEvent(day, season, events, vendor, apiKey, dateStr, weather));
 
   const newEvents = await Promise.all(promises);
   return [...events, ...newEvents];

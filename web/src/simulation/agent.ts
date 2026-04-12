@@ -17,7 +17,7 @@ function buildFixedPrompt(suppliersDir: string): string {
 - 배송된 상품이 보관되는 별도 창고가 있음
 - 시작 자금 $500, 일일 운영비 $2
 - 시뮬레이션 종료 시 자판기 대여료 $400을 납부해야 함 (최종 잔고에서 차감)
-- 잔고가 10일 연속 마이너스면 파산
+- 잔고가 5일 연속 마이너스면 파산
 
 ## 환경 정보
 - 도매가로 구매해서 소비자가로 판매
@@ -130,9 +130,6 @@ function getToolSchemas() {
   ];
 }
 
-// 이메일 ID 카운터
-let sentEmailCounter = 0;
-
 // 도구 실행 (send_email은 async)
 async function executeTool(
   toolName: string,
@@ -156,11 +153,9 @@ async function executeTool(
     }
     case 'send_email': {
       const { to, subject, body } = input as { to: string; subject: string; body: string };
-      sentEmailCounter++;
-
       // 에이전트가 보낸 이메일 기록
       const sentEmail: Email = {
-        id: `SENT-${String(sentEmailCounter).padStart(4, '0')}`,
+        id: `SENT-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         day: state.day,
         from: 'agent@vendingmachine.com',
         to,
@@ -329,6 +324,24 @@ export function generateMorningReport(
   return parts.join('\n');
 }
 
+type ProgressCallback = (step: string, status: 'start' | 'done', doneLabel?: string) => void;
+
+const TOOL_PROGRESS: Record<string, { loading: string; done: string }> = {
+  check_balance: { loading: '잔고 확인하는 중...', done: '잔고 확인 완료' },
+  get_machine_inventory: { loading: '자판기 재고 확인하는 중...', done: '자판기 재고 확인 완료' },
+  get_storage_inventory: { loading: '창고 재고 확인하는 중...', done: '창고 재고 확인 완료' },
+  send_email: { loading: '이메일 발송하는 중...', done: '이메일 발송 완료' },
+  read_inbox: { loading: '수신함 확인하는 중...', done: '수신함 확인 완료' },
+  stock_machine: { loading: '자판기에 재입고하는 중...', done: '자판기 재입고 완료' },
+  set_price: { loading: '가격 변경하는 중...', done: '가격 변경 완료' },
+  collect_cash: { loading: '매출 수거하는 중...', done: '매출 수거 완료' },
+};
+
+function humanizeToolsForStatus(names: string[], status: 'start' | 'done'): string {
+  const key = status === 'start' ? 'loading' : 'done';
+  return names.map(n => (TOOL_PROGRESS[n] || { loading: n, done: n })[key]).join(', ');
+}
+
 // AI 에이전트 실행 (한 턴)
 export async function runAgentTurn(
   state: SimulationState,
@@ -336,8 +349,10 @@ export async function runAgentTurn(
   model: string,
   agentPrompt: string,
   vendor: LlmVendor = 'anthropic',
-  apiKey?: string
+  apiKey?: string,
+  onProgress?: ProgressCallback
 ): Promise<{ state: SimulationState; thinking: string; actions: AgentAction[] }> {
+  const emit = onProgress || (() => {});
   const llm = createMainModel(vendor, apiKey!, model);
   const tools = getToolSchemas();
   const modelWithTools = llm.bindTools!(tools);
@@ -364,7 +379,9 @@ export async function runAgentTurn(
   let toolCallCount = 0;
 
   while (toolCallCount < MAX_TOOL_CALLS) {
+    emit('생각중...', 'start');
     const response = await modelWithTools.invoke(messages);
+    emit('생각중...', 'done', '생각 완료');
 
     // Extract thinking text
     if (typeof response.content === 'string' && response.content) {
@@ -394,6 +411,10 @@ export async function runAgentTurn(
 
     // Read-only: parallel execution
     if (readOnlyCalls.length > 0) {
+      const names = readOnlyCalls.map(tc => tc.name);
+      const loadingLabel = humanizeToolsForStatus(names, 'start');
+      const doneLabel = humanizeToolsForStatus(names, 'done');
+      emit(loadingLabel, 'start');
       const readResults = await Promise.all(
         readOnlyCalls.map(async (tc) => {
           const { result, state: newState } = await executeTool(
@@ -408,10 +429,14 @@ export async function runAgentTurn(
         messages.push(new ToolMessage({ content: r.result, tool_call_id: r.tc.id! }));
         toolCallCount++;
       }
+      emit(loadingLabel, 'done', doneLabel);
     }
 
     // Mutating: sequential execution
     for (const tc of mutatingCalls) {
+      const loadingLabel = humanizeToolsForStatus([tc.name], 'start');
+      const doneLabel = humanizeToolsForStatus([tc.name], 'done');
+      emit(loadingLabel, 'start');
       const { result, state: newState } = await executeTool(
         tc.name, tc.args as Record<string, unknown>, currentState, vendor, apiKey
       );
@@ -419,6 +444,7 @@ export async function runAgentTurn(
       actions.push({ tool: tc.name, input: tc.args as Record<string, unknown>, result });
       messages.push(new ToolMessage({ content: result, tool_call_id: tc.id! }));
       toolCallCount++;
+      emit(loadingLabel, 'done', doneLabel);
     }
   }
 

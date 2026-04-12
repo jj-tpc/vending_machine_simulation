@@ -43,8 +43,9 @@ export default function VendingMachineView({ machine }: Props) {
         padding: '8px',
         border: '1px solid var(--border-light)',
       }}>
-        {[0, 1, 2, 3].map(row => (
-          <div key={row} className="flex gap-1.5" style={{ marginBottom: row < 3 ? '6px' : 0 }}>
+        {/* 3 rows x 4 cols display (remapped from 4x3 data) */}
+        {[0, 1, 2].map(displayRow => (
+          <div key={displayRow} className="flex gap-1.5" style={{ marginBottom: displayRow < 2 ? '6px' : 0 }}>
             <span style={{
               fontSize: '9px',
               color: 'var(--text-quaternary)',
@@ -54,10 +55,14 @@ export default function VendingMachineView({ machine }: Props) {
               justifyContent: 'center',
               fontWeight: 600,
             }}>
-              {row < 2 ? 'S' : 'L'}
+              {displayRow < 2 ? 'S' : 'L'}
             </span>
-            {[0, 1, 2].map(col => {
-              const slot = machine.find(s => s.row === row && s.col === col);
+            {[0, 1, 2, 3].map(displayCol => {
+              // Map 3x4 display → 4x3 data: slot index = displayRow * 4 + displayCol
+              const slotIndex = displayRow * 4 + displayCol;
+              const dataRow = Math.floor(slotIndex / 3);
+              const dataCol = slotIndex % 3;
+              const slot = machine.find(s => s.row === dataRow && s.col === dataCol);
               if (!slot) return null;
               const maxQty = getMaxQty(slot.size);
               const hasStock = slot.productName && slot.quantity > 0;
@@ -66,7 +71,7 @@ export default function VendingMachineView({ machine }: Props) {
 
               return (
                 <div
-                  key={col}
+                  key={displayCol}
                   className="flex-1 relative overflow-hidden"
                   style={{
                     borderRadius: 'var(--radius-sm)',
@@ -128,6 +133,7 @@ export default function VendingMachineView({ machine }: Props) {
       <div className="flex justify-between" style={{ marginTop: '6px', fontSize: '9px', color: 'var(--text-quaternary)' }}>
         <span>S = Small (max 15)</span>
         <span>L = Large (max 8)</span>
+        <span>3 x 4 = 12 slots</span>
       </div>
     </div>
   );
