@@ -211,9 +211,15 @@ export async function updateMarketEvents(
 
   if (!needPublic && !needHidden) return events;
 
-  // 공개 + 숨김 이벤트를 병렬 생성
+  // 공개 이벤트: 1개 60%, 2개 35%, 3개 5%
   const promises: Promise<MarketEvent>[] = [];
-  if (needPublic) promises.push(generatePublicEvent(day, season, events, vendor, apiKey));
+  if (needPublic) {
+    const roll = Math.random();
+    const publicCount = roll < 0.60 ? 1 : roll < 0.95 ? 2 : 3;
+    for (let i = 0; i < publicCount; i++) {
+      promises.push(generatePublicEvent(day, season, events, vendor, apiKey));
+    }
+  }
   if (needHidden) promises.push(generateHiddenEvent(day, season, events, vendor, apiKey));
 
   const newEvents = await Promise.all(promises);

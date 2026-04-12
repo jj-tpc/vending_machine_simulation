@@ -18,7 +18,7 @@ export default function AgentLog({ log }: Props) {
   }
 
   return (
-    <div className="card p-5 h-full overflow-y-auto">
+    <div className="card p-5">
       <h3 style={{
         fontSize: '18px',
         fontWeight: 700,

@@ -582,7 +582,6 @@ priceModifierChange: -0.05~+0.10 / relationshipChange: -1,0,+1
 // 주문 생성
 // ============================================================
 
-let orderCounter = 0;
 
 function createOrder(
   supplierId: string,
@@ -602,12 +601,15 @@ function createOrder(
 
   if (totalCost > balance) return { error: '잔고 부족' };
 
-  const deliveryDelay = 2 + Math.floor(Math.random() * 2) + extraDelay;
-  orderCounter++;
+  // 1일: 50%, 2일: 35%, 3일: 15%
+  const roll = Math.random();
+  const baseDelay = roll < 0.50 ? 1 : roll < 0.85 ? 2 : 3;
+  const deliveryDelay = baseDelay + extraDelay;
+  const orderId = `ORD-${currentDay}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
   return {
     order: {
-      id: `ORD-${String(orderCounter).padStart(4, '0')}`,
+      id: orderId,
       supplierId,
       items: orderItems,
       totalCost,
@@ -622,8 +624,6 @@ function createOrder(
 // ============================================================
 // 에이전트 이메일 처리
 // ============================================================
-
-let emailCounter = 0;
 
 export async function processAgentEmail(
   agentEmail: Email,
@@ -641,12 +641,12 @@ export async function processAgentEmail(
   updatedSupplierStates: Record<string, SupplierState>;
 }> {
   const supplier = findSupplierByEmail(agentEmail.to, suppliers);
-  emailCounter++;
+
 
   if (!supplier) {
     return {
       replyEmail: {
-        id: `EMAIL-${String(emailCounter).padStart(4, '0')}`,
+        id: `EMAIL-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         day: currentDay,
         from: 'system@mailer-daemon.com',
         to: 'agent@vendingmachine.com',
@@ -664,7 +664,7 @@ export async function processAgentEmail(
   if (sState.defunct) {
     return {
       replyEmail: {
-        id: `EMAIL-${String(emailCounter).padStart(4, '0')}`,
+        id: `EMAIL-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         day: currentDay,
         from: 'system@mailer-daemon.com',
         to: 'agent@vendingmachine.com',
@@ -710,7 +710,7 @@ export async function processAgentEmail(
 
   return {
     replyEmail: {
-      id: `EMAIL-${String(emailCounter).padStart(4, '0')}`,
+      id: `EMAIL-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       day: currentDay,
       from: supplier.email,
       to: 'agent@vendingmachine.com',
@@ -750,9 +750,9 @@ export function processDeliveries(
 
       const supplier = suppliers.find(s => s.id === order.supplierId);
       const itemsText = order.items.map(i => `${i.productName} ${i.quantity}개`).join(', ');
-      emailCounter++;
+    
       deliveryEmails.push({
-        id: `EMAIL-${String(emailCounter).padStart(4, '0')}`,
+        id: `EMAIL-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         day: currentDay,
         from: supplier?.email || 'delivery@system.com',
         to: 'agent@vendingmachine.com',

@@ -54,8 +54,7 @@ export default function SettingsPanel({
   const currentVendor = VENDOR_OPTIONS.find(v => v.value === vendor)!;
 
   return (
-    <div className="card p-4 space-y-4">
-      <h3 className="section-heading">Settings</h3>
+    <div className="p-4 space-y-4">
 
       {/* LLM Vendor */}
       <div>
