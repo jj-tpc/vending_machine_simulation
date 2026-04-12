@@ -7,12 +7,14 @@ interface Props {
   state: SimulationState;
   selectedEmailId: string | null;
   onSelectEmail: (id: string | null) => void;
+  onSwitchToEmailTab?: () => void;
 }
 
 type TabType = 'received' | 'sent';
 
-export default function EmailPanel({ state, selectedEmailId, onSelectEmail }: Props) {
+export default function EmailPanel({ state, selectedEmailId, onSelectEmail, onSwitchToEmailTab }: Props) {
   const [tab, setTab] = useState<TabType>('received');
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
   const receivedEmails = state.emails.filter(e => e.type === 'received').reverse();
   const sentEmails = state.emails.filter(e => e.type === 'sent').reverse();
@@ -36,14 +38,22 @@ export default function EmailPanel({ state, selectedEmailId, onSelectEmail }: Pr
           {pendingOrders.map(order => {
             const items = order.items.map(i => `${i.productName} x${i.quantity}`).join(', ');
             const daysLeft = order.deliveryDay - state.day;
+            const isExpanded = expandedOrderId === order.id;
+            const supplier = state.suppliers.find(s => s.id === order.supplierId);
             return (
-              <div key={order.id} style={{
-                background: '#FFF7ED',
-                borderRadius: 'var(--radius-sm)',
-                padding: '6px 8px',
-                marginBottom: '4px',
-                border: '1px solid #FED7AA',
-              }}>
+              <div
+                key={order.id}
+                onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
+                style={{
+                  background: '#FFF7ED',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '6px 8px',
+                  marginBottom: '4px',
+                  border: '1px solid #FED7AA',
+                  cursor: 'pointer',
+                  transition: 'background var(--transition-fast)',
+                }}
+              >
                 <div className="flex justify-between items-center">
                   <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
                     {order.id}
@@ -55,6 +65,37 @@ export default function EmailPanel({ state, selectedEmailId, onSelectEmail }: Pr
                 <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {items}
                 </div>
+                {isExpanded && (
+                  <div style={{
+                    marginTop: '6px',
+                    paddingTop: '6px',
+                    borderTop: '1px solid #FED7AA',
+                    fontSize: '10px',
+                  }}>
+                    <div style={{ color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 600 }}>공급업체:</span> {supplier?.name || order.supplierId}
+                    </div>
+                    <div style={{ color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 600 }}>주문일:</span> {order.orderDay}일차 &rarr; <span style={{ fontWeight: 600 }}>배송 예정:</span> {order.deliveryDay}일차
+                    </div>
+                    {order.items.map((item, i) => (
+                      <div key={i} className="flex justify-between" style={{ color: 'var(--text-secondary)', marginBottom: '2px' }}>
+                        <span>{item.productName} x{item.quantity}</span>
+                        <span style={{ fontFamily: 'var(--font-mono)' }}>${(item.unitPrice * item.quantity).toFixed(2)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between" style={{
+                      marginTop: '4px',
+                      paddingTop: '4px',
+                      borderTop: '1px dashed #FED7AA',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                    }}>
+                      <span>합계</span>
+                      <span style={{ fontFamily: 'var(--font-mono)' }}>${order.totalCost.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -96,7 +137,10 @@ export default function EmailPanel({ state, selectedEmailId, onSelectEmail }: Pr
               key={email.id}
               email={email}
               isSelected={selectedEmailId === email.id}
-              onClick={() => onSelectEmail(selectedEmailId === email.id ? null : email.id)}
+              onClick={() => {
+                onSelectEmail(email.id);
+                onSwitchToEmailTab?.();
+              }}
             />
           ))
         )}

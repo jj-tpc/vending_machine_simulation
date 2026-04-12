@@ -40,6 +40,14 @@ export default function Dashboard() {
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [centerTab, setCenterTab] = useState<'agent' | 'email' | 'settings'>('agent');
+
+  // Random start date (between 2020-01-01 and 2025-12-31)
+  const [startDate, setStartDate] = useState(() => {
+    const start = new Date(2020, 0, 1).getTime();
+    const end = new Date(2025, 11, 31).getTime();
+    const randomDate = new Date(start + Math.random() * (end - start));
+    return randomDate.toISOString().split('T')[0];
+  });
   const selectedEmail = state?.emails.find(e => e.id === selectedEmailId) || null;
 
   const settingsPanel = (
@@ -78,6 +86,8 @@ export default function Dashboard() {
           finished={finished}
           finishReason={finishReason}
           onStart={startSimulation}
+          startDate={startDate}
+          onChangeStartDate={setStartDate}
           onNextTurn={nextTurn}
           onSkipTurns={skipTurns}
           onReset={handleReset}
@@ -169,6 +179,7 @@ export default function Dashboard() {
                 state={state}
                 selectedEmailId={selectedEmailId}
                 onSelectEmail={setSelectedEmailId}
+                onSwitchToEmailTab={() => setCenterTab('email')}
               />
             </div>
 
@@ -285,8 +296,10 @@ export default function Dashboard() {
           <div className="sidebar flex-shrink-0 overflow-y-auto p-4" style={{ width: '320px' }}>
             {settingsPanel}
           </div>
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center" style={{ maxWidth: '400px' }}>
+          <div className="flex-1 overflow-y-auto flex items-center p-6 gap-6">
+            <div className="flex-1" />
+            {/* Center: Welcome + Date */}
+            <div className="text-center" style={{ maxWidth: '400px', flexShrink: 0 }}>
               <div style={{
                 width: '72px',
                 height: '72px',
@@ -309,10 +322,94 @@ export default function Dashboard() {
                 왼쪽에서 LLM 제공자, API 키, 모델, 에이전트 성격을 설정한 후
                 상단 툴바에서 시뮬레이션 기간을 선택하세요.
               </p>
+
+              {/* Start date card */}
+              <div className="card" style={{ marginTop: '24px', padding: '16px 20px', textAlign: 'left' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-tertiary)', fontWeight: 500, marginBottom: '8px' }}>
+                  시작 날짜
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={e => setStartDate(e.target.value)}
+                    className="input"
+                    style={{ flex: 1, height: '32px', fontSize: '13px' }}
+                  />
+                  <button
+                    onClick={() => setStartDate(new Date().toISOString().split('T')[0])}
+                    className="btn btn-secondary"
+                    style={{ fontSize: '12px', height: '32px', flexShrink: 0 }}
+                  >
+                    오늘
+                  </button>
+                  <button
+                    onClick={() => {
+                      const start = new Date(2020, 0, 1).getTime();
+                      const end = new Date(2025, 11, 31).getTime();
+                      const d = new Date(start + Math.random() * (end - start));
+                      setStartDate(d.toISOString().split('T')[0]);
+                    }}
+                    className="btn btn-secondary"
+                    style={{ fontSize: '12px', height: '32px', flexShrink: 0 }}
+                  >
+                    랜덤
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1" />
+            {/* Right: Rules card */}
+            <div style={{ maxWidth: '360px', flexShrink: 0, alignSelf: 'center' }}>
+              <div style={{
+                borderRadius: 'var(--radius-lg)',
+                overflow: 'hidden',
+                border: '1px solid var(--border-light)',
+                boxShadow: 'var(--shadow-sm)',
+              }}>
+                {/* Header */}
+                <div style={{
+                  background: 'var(--accent-primary)',
+                  padding: '16px 20px',
+                  color: 'white',
+                }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '4px' }}>
+                    게임 규칙
+                  </h3>
+                  <p style={{ fontSize: '11px', opacity: 0.85 }}>
+                    LLM Agent가 자판기를 운영하며 수익을 벌어들입니다.
+                    시스템 프롬프트를 수정하여, Agent의 행동과 방향을 조정하여 수익을 극대화 시켜보세요.
+                  </p>
+                </div>
+                {/* Body */}
+                <div style={{ background: 'var(--bg-card)', padding: '16px 20px' }}>
+                  <RuleItem title="시작 자금은 $500입니다" desc="매일 운영비 $2가 자동으로 빠져나갑니다." />
+                  <RuleItem title="자판기에는 12개의 슬롯이 있습니다" desc="소형 6칸에는 최대 15개, 대형 6칸에는 최대 8개까지 넣을 수 있습니다." />
+                  <RuleItem title="상품은 공급업체에 이메일로 주문합니다" desc="주문 후 1~3일 뒤에 배송이 도착합니다. 공급업체마다 가격과 성격이 다릅니다." />
+                  <RuleItem title="시장 상황이 매출에 영향을 줍니다" desc="날씨, 계절, 주말 여부, 뉴스 이벤트에 따라 고객 수와 구매 패턴이 달라집니다." />
+                  <RuleItem title="잔고가 5일 연속 마이너스면 파산합니다" desc="현금 흐름을 잘 관리하고, 자판기에 쌓인 매출을 적시에 수거하세요." />
+                  <RuleItem title="시뮬레이션이 끝나면 대여료 $400을 냅니다" desc="최종 정산에서 차감되므로, 충분한 이익을 확보해야 합니다." last />
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function RuleItem({ title, desc, last }: { title: string; desc: string; last?: boolean }) {
+  return (
+    <div style={{
+      paddingBottom: last ? 0 : '10px',
+      marginBottom: last ? 0 : '10px',
+      borderBottom: last ? 'none' : '1px solid var(--border-light)',
+    }}>
+      <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{title}</div>
+      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px', lineHeight: 1.5 }}>{desc}</div>
     </div>
   );
 }

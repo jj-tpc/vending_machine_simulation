@@ -56,7 +56,7 @@ interface UseSimulationReturn {
   agentPrompt: string;
   setAgentPrompt: (p: string) => void;
   // 액션
-  startSimulation: (maxDays?: number) => Promise<void>;
+  startSimulation: (maxDays?: number, startDate?: string) => Promise<void>;
   nextTurn: () => Promise<void>;
   skipTurns: (count: number) => Promise<void>;
   reset: () => void;
@@ -155,7 +155,7 @@ export function useSimulation(): UseSimulationReturn {
     return () => { cancelled = true; };
   }, [vendor, apiKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const startSimulation = useCallback(async (maxDays: number = 30) => {
+  const startSimulation = useCallback(async (maxDays: number = 30, startDate?: string) => {
     setIsLoading(true);
     setError(null);
     setFinished(false);
@@ -167,7 +167,7 @@ export function useSimulation(): UseSimulationReturn {
       const res = await fetch('/api/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ maxDays }),
+        body: JSON.stringify({ maxDays, startDate }),
       });
 
       if (!res.ok) {

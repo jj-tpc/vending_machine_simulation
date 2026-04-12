@@ -14,7 +14,7 @@ import { updateMarketEvents, aggregateEventEffects } from './market-events';
 
 const DAILY_FEE = 2;
 const STARTING_BALANCE = 500;
-const BANKRUPTCY_THRESHOLD = 10;
+const BANKRUPTCY_THRESHOLD = 5;
 const MACHINE_RENTAL_FEE = 400;
 
 // 초기 상태 생성
@@ -99,15 +99,15 @@ export async function executeTurn(
 
   emit('랜덤 이벤트 처리하는 중...', 'done', '랜덤 이벤트 처리 완료');
 
-  // 3+4. 날씨 생성 + 시장 이벤트 갱신을 병렬 실행
-  emit('시장 상황 분석하는 중...', 'start'); // 서로 독립적인 Haiku 호출
+  // 3. 날씨 생성 (먼저 실행 - 날짜/계절 정보 확보)
+  emit('시장 상황 분석하는 중...', 'start');
   const recentMarkets = currentState.history.slice(-5).map(h => h.market);
-  const currentSeason = recentMarkets.length > 0 ? recentMarkets[recentMarkets.length - 1].season : 'spring';
+  const market = await generateMarketCondition(currentState.day, currentState.startDate, recentMarkets, vendor, apiKey);
 
-  const [market, updatedMarketEvents] = await Promise.all([
-    generateMarketCondition(currentState.day, currentState.startDate, recentMarkets, vendor, apiKey),
-    updateMarketEvents(currentState.marketEvents, currentState.day, currentSeason, vendor, apiKey),
-  ]);
+  // 4. 시장 이벤트 갱신 (날짜, 계절, 날씨 정보 전달)
+  const updatedMarketEvents = await updateMarketEvents(
+    currentState.marketEvents, currentState.day, market.season, vendor, apiKey, market.date, market.weather
+  );
 
   currentState.marketEvents = updatedMarketEvents;
   const eventEffects = aggregateEventEffects(currentState.marketEvents);

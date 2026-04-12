@@ -26,22 +26,12 @@ export default function FinancialPanel({ state, logs }: Props) {
         Financials
       </h3>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-2" style={{ marginBottom: '14px' }}>
-        <KpiCard
-          label="Cash Balance"
-          value={`$${state.balance.toFixed(2)}`}
-          color={state.balance >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}
-          large
-        />
-        <KpiCard
-          label="Net Worth"
-          value={`$${latestNetWorth.toFixed(2)}`}
-          color={latestNetWorth >= 500 ? 'var(--accent-green)' : 'var(--accent-orange)'}
-          large
-        />
-        <KpiCard label="Total Revenue" value={`$${totalRevenue.toFixed(2)}`} color="var(--text-primary)" />
-        <KpiCard label="Units Sold" value={`${totalUnitsSold}`} color="var(--text-primary)" />
+      {/* KPIs - 재무제표 스타일 */}
+      <div style={{ marginBottom: '14px', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+        <KpiRow label="Cash Balance" value={`$${state.balance.toFixed(2)}`} color={state.balance >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'} />
+        <KpiRow label="Net Worth" value={`$${latestNetWorth.toFixed(2)}`} color={latestNetWorth >= 500 ? 'var(--accent-green)' : 'var(--accent-orange)'} />
+        <KpiRow label="Total Revenue" value={`$${totalRevenue.toFixed(2)}`} color="var(--text-primary)" />
+        <KpiRow label="Units Sold" value={`${totalUnitsSold}`} color="var(--text-primary)" last />
       </div>
 
       {/* Chart */}
@@ -85,23 +75,15 @@ export default function FinancialPanel({ state, logs }: Props) {
   );
 }
 
-function KpiCard({ label, value, color, large }: { label: string; value: string; color: string; large?: boolean }) {
+function KpiRow({ label, value, color, last }: { label: string; value: string; color: string; last?: boolean }) {
   return (
-    <div style={{
-      background: 'var(--bg-primary)',
-      borderRadius: 'var(--radius-md)',
-      padding: '10px',
-      border: '1px solid var(--border-light)',
+    <div className="flex items-center justify-between" style={{
+      padding: '1px 12px',
+      borderBottom: last ? 'none' : '1px solid var(--border-light)',
+      background: 'var(--bg-card)',
     }}>
-      <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '2px' }}>{label}</div>
-      <div style={{
-        fontSize: large ? '18px' : '14px',
-        fontWeight: 700,
-        fontFamily: 'var(--font-mono)',
-        color,
-      }}>
-        {value}
-      </div>
+      <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{label}</span>
+      <span style={{ fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-mono)', color }}>{value}</span>
     </div>
   );
 }
