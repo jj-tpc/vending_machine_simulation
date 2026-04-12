@@ -37,7 +37,6 @@ export default function Dashboard() {
   } = useSimulation();
 
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
-
   const selectedEmail = state?.emails.find(e => e.id === selectedEmailId) || null;
 
   const handleReset = () => {
@@ -46,41 +45,43 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-4">
-      {/* Header */}
-      <div className="mb-4">
-        <h1 className="text-xl font-bold">
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg-primary)' }}>
+      {/* Top toolbar */}
+      <div className="toolbar sticky top-0 z-50 px-6 h-14 flex items-center gap-4">
+        <h1 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
           Vending Machine Simulation
         </h1>
-        <p className="text-gray-500 text-xs mt-0.5">
-          Powered by AI Agent &middot; Based on Vending-Bench
-        </p>
+        <div className="flex-1" />
+        <ControlPanel
+          state={state}
+          isLoading={isLoading}
+          finished={finished}
+          finishReason={finishReason}
+          onStart={startSimulation}
+          onNextTurn={nextTurn}
+          onSkipTurns={skipTurns}
+          onReset={handleReset}
+        />
       </div>
 
-      {/* Error display */}
+      {/* Error */}
       {error && (
-        <div className="mb-4 bg-red-900/30 border border-red-700 rounded-lg p-3 text-red-300 text-sm">
+        <div className="mx-6 mt-3 px-4 py-2.5" style={{
+          background: '#FEF2F2',
+          border: '1px solid #FECACA',
+          borderRadius: 'var(--radius-md)',
+          color: 'var(--accent-red)',
+          fontSize: '13px',
+        }}>
           {error}
         </div>
       )}
 
-      {/* Control Panel */}
-      <ControlPanel
-        state={state}
-        isLoading={isLoading}
-        finished={finished}
-        finishReason={finishReason}
-        onStart={startSimulation}
-        onNextTurn={nextTurn}
-        onSkipTurns={skipTurns}
-        onReset={handleReset}
-      />
-
-      {/* Main content grid */}
-      {state && (
-        <div className="grid grid-cols-12 gap-4 mt-4">
-          {/* Left column - Vending Machine + Email List + Settings */}
-          <div className="col-span-12 lg:col-span-3 space-y-4">
+      {/* Main content */}
+      {state ? (
+        <div className="flex flex-1 overflow-hidden">
+          {/* Sidebar */}
+          <div className="sidebar flex-shrink-0 overflow-y-auto p-4 space-y-4" style={{ width: '280px' }}>
             <VendingMachineView machine={state.machine} />
             <EmailPanel
               state={state}
@@ -102,15 +103,16 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Center - Agent Log or Email Viewer */}
-          <div className="col-span-12 lg:col-span-5">
+          {/* Center content */}
+          <div className="flex-1 overflow-y-auto p-5">
             {selectedEmail ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <button
                   onClick={() => setSelectedEmailId(null)}
-                  className="text-[11px] text-gray-500 hover:text-gray-300 flex items-center gap-1 transition-colors"
+                  className="btn-ghost flex items-center gap-1"
+                  style={{ fontSize: '13px', color: 'var(--accent-primary)', padding: 0, background: 'none', border: 'none', cursor: 'pointer' }}
                 >
-                  <span>&larr;</span> Agent Log로 돌아가기
+                  <span>&larr;</span> Agent Log
                 </button>
                 <EmailViewer email={selectedEmail} />
               </div>
@@ -119,18 +121,20 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Right column - Financials + Market */}
-          <div className="col-span-12 lg:col-span-4 space-y-4">
+          {/* Right inspector */}
+          <div className="flex-shrink-0 overflow-y-auto p-4 space-y-4" style={{
+            width: '320px',
+            borderLeft: '1px solid var(--border-light)',
+            background: 'var(--bg-sidebar)',
+          }}>
             <FinancialPanel state={state} logs={allLogs} />
             <MarketStatus state={state} log={currentLog} />
           </div>
         </div>
-      )}
-
-      {/* Empty state - with settings */}
-      {!state && (
-        <div className="mt-8 grid grid-cols-12 gap-6">
-          <div className="col-span-12 lg:col-span-4 lg:col-start-2">
+      ) : (
+        <div className="flex flex-1 overflow-hidden">
+          {/* Settings sidebar */}
+          <div className="sidebar flex-shrink-0 overflow-y-auto p-4" style={{ width: '320px' }}>
             <SettingsPanel
               models={models}
               modelsLoading={modelsLoading}
@@ -145,16 +149,42 @@ export default function Dashboard() {
               disabled={false}
             />
           </div>
-          <div className="col-span-12 lg:col-span-5 flex flex-col items-center justify-center text-center py-12">
-            <div className="text-6xl mb-4">🏭</div>
-            <h2 className="text-xl font-semibold text-gray-300 mb-2">
-              Vending Machine Simulation
-            </h2>
-            <p className="text-gray-500 max-w-md text-sm">
-              AI 에이전트가 자판기 사업을 경영합니다.
-              왼쪽에서 LLM 제공자, API 키, 모델, 에이전트 성격을 설정한 후,
-              상단에서 시뮬레이션 기간을 선택하세요.
-            </p>
+
+          {/* Welcome */}
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center" style={{ maxWidth: '400px' }}>
+              <div style={{
+                width: '72px',
+                height: '72px',
+                margin: '0 auto 20px',
+                borderRadius: 'var(--radius-xl)',
+                background: 'var(--bg-secondary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '32px',
+                border: '1px solid var(--border-light)',
+              }}>
+                🏭
+              </div>
+              <h2 style={{
+                fontSize: '24px',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                marginBottom: '8px',
+              }}>
+                Vending Machine Simulation
+              </h2>
+              <p style={{
+                fontSize: '14px',
+                color: 'var(--text-secondary)',
+                lineHeight: 1.6,
+              }}>
+                AI 에이전트가 자판기 사업을 경영합니다.
+                왼쪽에서 LLM 제공자, API 키, 모델, 에이전트 성격을 설정한 후
+                상단 툴바에서 시뮬레이션 기간을 선택하세요.
+              </p>
+            </div>
           </div>
         </div>
       )}

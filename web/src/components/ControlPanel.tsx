@@ -26,90 +26,71 @@ export default function ControlPanel({
   const notStarted = !state;
 
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-xl p-4 flex items-center gap-4 flex-wrap">
+    <div className="flex items-center gap-2">
       {notStarted ? (
         <>
-          <span className="text-gray-400 text-sm">Simulation Duration:</span>
-          <button
-            onClick={() => onStart(15)}
-            disabled={isLoading}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
-          >
+          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Duration:</span>
+          <button onClick={() => onStart(15)} disabled={isLoading} className="btn btn-secondary">
             15 Days
           </button>
-          <button
-            onClick={() => onStart(30)}
-            disabled={isLoading}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
-          >
+          <button onClick={() => onStart(30)} disabled={isLoading} className="btn btn-secondary">
             30 Days
           </button>
         </>
       ) : (
         <>
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-gray-400">Day</span>
-            <span className="text-white font-bold text-lg">{state.day}</span>
-            <span className="text-gray-500">/ {state.maxDays}</span>
+          <div className="flex items-center gap-1.5" style={{ fontSize: '13px' }}>
+            <span style={{ color: 'var(--text-secondary)' }}>Day</span>
+            <span style={{ fontWeight: 700, fontSize: '16px', fontFamily: 'var(--font-mono)' }}>
+              {state.day}
+            </span>
+            <span style={{ color: 'var(--text-tertiary)' }}>/ {state.maxDays}</span>
           </div>
 
-          <div className="h-6 w-px bg-gray-700" />
+          <div style={{ width: '1px', height: '16px', background: 'var(--border-default)', margin: '0 4px' }} />
 
           {finished ? (
-            <div className="flex items-center gap-3">
-              <span className="text-yellow-400 font-medium">
-                {finishReason === 'bankrupt' ? 'BANKRUPT' : 'SIMULATION COMPLETE'}
+            <>
+              <span className="badge" style={{
+                background: finishReason === 'bankrupt' ? '#FEF2F2' : '#FFF7ED',
+                color: finishReason === 'bankrupt' ? 'var(--accent-red)' : 'var(--accent-orange)',
+                fontSize: '12px',
+                padding: '3px 10px',
+              }}>
+                {finishReason === 'bankrupt' ? 'BANKRUPT' : 'COMPLETE'}
               </span>
-              <button
-                onClick={onReset}
-                className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-medium transition-colors"
-              >
+              <button onClick={onReset} className="btn btn-secondary" style={{ color: 'var(--accent-red)' }}>
                 Reset
               </button>
-            </div>
+            </>
           ) : (
             <>
               <button
                 onClick={onNextTurn}
                 disabled={isLoading}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-600 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                className="btn btn-primary"
               >
-                {isLoading ? (
-                  <>
-                    <span className="animate-spin">&#9696;</span>
-                    Processing...
-                  </>
-                ) : (
-                  'Next Turn'
-                )}
+                {isLoading ? 'Processing...' : 'Next Turn'}
               </button>
-
               <button
                 onClick={() => onSkipTurns(15)}
                 disabled={isLoading}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
+                className="btn btn-secondary"
               >
-                Skip 15 Turns
+                Skip 15
               </button>
-
-              <div className="ml-auto">
-                <button
-                  onClick={onReset}
-                  disabled={isLoading}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 rounded-lg text-sm transition-colors"
-                >
-                  Reset
-                </button>
-              </div>
+              <button onClick={onReset} disabled={isLoading} className="btn btn-ghost">
+                Reset
+              </button>
             </>
           )}
-        </>
-      )}
 
-      {isLoading && (
-        <span className="text-blue-400 text-xs animate-pulse ml-2">
-          Claude is thinking...
-        </span>
+          {isLoading && (
+            <span className="animate-pulse" style={{ fontSize: '12px', color: 'var(--accent-primary)' }}>
+              AI is thinking...
+            </span>
+          )}
+        </>
       )}
     </div>
   );

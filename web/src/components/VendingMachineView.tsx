@@ -7,23 +7,23 @@ interface Props {
 }
 
 const PRODUCT_COLORS: Record<string, string> = {
-  'Cola': 'bg-red-800',
-  'Water': 'bg-blue-800',
-  'Orange Juice': 'bg-orange-800',
-  'Energy Drink': 'bg-green-800',
-  'Iced Coffee': 'bg-amber-900',
-  'Chips': 'bg-yellow-800',
-  'Chocolate Bar': 'bg-amber-800',
-  'Cookies': 'bg-orange-900',
-  'Granola Bar': 'bg-lime-900',
-  'Crackers': 'bg-yellow-900',
-  'Gum': 'bg-pink-800',
-  'Mints': 'bg-cyan-800',
+  'Cola': '#C9493B',
+  'Water': '#4A7FBA',
+  'Orange Juice': '#CC7A2E',
+  'Energy Drink': '#3D8B5F',
+  'Iced Coffee': '#8B7355',
+  'Chips': '#B8952E',
+  'Chocolate Bar': '#7A5C3A',
+  'Cookies': '#A06830',
+  'Granola Bar': '#6B8F42',
+  'Crackers': '#9B8530',
+  'Gum': '#D4718E',
+  'Mints': '#4A9BB5',
 };
 
 function getColor(productName: string | null): string {
-  if (!productName) return 'bg-gray-800';
-  return PRODUCT_COLORS[productName] || 'bg-purple-800';
+  if (!productName) return '#E8E2DA';
+  return PRODUCT_COLORS[productName] || '#7B61B0';
 }
 
 function getMaxQty(size: 'small' | 'large'): number {
@@ -32,16 +32,28 @@ function getMaxQty(size: 'small' | 'large'): number {
 
 export default function VendingMachineView({ machine }: Props) {
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-xl p-4">
-      <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wider">
+    <div className="card p-3">
+      <h3 className="section-heading" style={{ marginBottom: '8px' }}>
         Vending Machine
       </h3>
 
-      <div className="bg-gray-950 rounded-lg p-3 border border-gray-800">
-        {/* 4 rows */}
+      <div style={{
+        background: 'var(--bg-primary)',
+        borderRadius: 'var(--radius-md)',
+        padding: '8px',
+        border: '1px solid var(--border-light)',
+      }}>
         {[0, 1, 2, 3].map(row => (
-          <div key={row} className="flex gap-2 mb-2 last:mb-0">
-            <span className="text-[10px] text-gray-600 w-4 flex items-center justify-center">
+          <div key={row} className="flex gap-1.5" style={{ marginBottom: row < 3 ? '6px' : 0 }}>
+            <span style={{
+              fontSize: '9px',
+              color: 'var(--text-quaternary)',
+              width: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 600,
+            }}>
               {row < 2 ? 'S' : 'L'}
             </span>
             {[0, 1, 2].map(col => {
@@ -50,35 +62,58 @@ export default function VendingMachineView({ machine }: Props) {
               const maxQty = getMaxQty(slot.size);
               const hasStock = slot.productName && slot.quantity > 0;
               const fillPct = hasStock ? (slot.quantity / maxQty) * 100 : 0;
+              const color = getColor(slot.productName);
 
               return (
                 <div
                   key={col}
-                  className={`flex-1 rounded-lg border border-gray-700 p-2 min-h-[72px] relative overflow-hidden ${
-                    hasStock ? '' : 'opacity-50'
-                  }`}
+                  className="flex-1 relative overflow-hidden"
+                  style={{
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-light)',
+                    padding: '6px',
+                    minHeight: '58px',
+                    background: 'var(--bg-card)',
+                    opacity: hasStock ? 1 : 0.5,
+                    transition: 'opacity var(--transition-default)',
+                  }}
                 >
-                  {/* Fill bar */}
                   <div
-                    className={`absolute bottom-0 left-0 right-0 ${hasStock ? getColor(slot.productName) : 'bg-gray-800'} opacity-30 transition-all duration-500`}
-                    style={{ height: `${fillPct}%` }}
+                    className="absolute bottom-0 left-0 right-0"
+                    style={{
+                      height: `${fillPct}%`,
+                      background: color,
+                      opacity: 0.1,
+                      transition: 'height 500ms ease',
+                    }}
                   />
-
-                  <div className="relative z-10">
+                  <div className="relative" style={{ zIndex: 1 }}>
                     {hasStock ? (
                       <>
-                        <div className="text-[11px] font-medium text-white truncate">
+                        <div style={{
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          color: 'var(--text-primary)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}>
                           {slot.productName}
                         </div>
-                        <div className="text-[10px] text-gray-400 mt-1">
+                        <div style={{ fontSize: '9px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
                           {slot.quantity}/{maxQty}
                         </div>
-                        <div className="text-[11px] text-emerald-400 font-mono">
+                        <div style={{
+                          fontSize: '10px',
+                          color: 'var(--accent-green)',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 600,
+                        }}>
                           ${slot.price.toFixed(2)}
                         </div>
                       </>
                     ) : (
-                      <div className="text-[10px] text-gray-600 text-center mt-3">
+                      <div style={{ fontSize: '9px', color: 'var(--text-quaternary)', textAlign: 'center', marginTop: '14px' }}>
                         Empty
                       </div>
                     )}
@@ -90,9 +125,9 @@ export default function VendingMachineView({ machine }: Props) {
         ))}
       </div>
 
-      <div className="mt-2 flex justify-between text-[10px] text-gray-600">
-        <span>S = Small slot (max 15)</span>
-        <span>L = Large slot (max 8)</span>
+      <div className="flex justify-between" style={{ marginTop: '6px', fontSize: '9px', color: 'var(--text-quaternary)' }}>
+        <span>S = Small (max 15)</span>
+        <span>L = Large (max 8)</span>
       </div>
     </div>
   );
