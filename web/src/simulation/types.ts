@@ -145,6 +145,7 @@ export interface TurnLog {
   deliveries: Order[];
   balanceAfter: number;
   netWorth: number;
+  warnings?: string[];  // LLM 출력 파싱 실패·포맷 폴백 발동 메시지
 }
 
 // --- Full Simulation State ---

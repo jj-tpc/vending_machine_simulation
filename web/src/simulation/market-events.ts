@@ -13,7 +13,8 @@ async function generatePublicEvent(
   vendor: LlmVendor = 'anthropic',
   apiKey?: string,
   dateStr?: string,
-  weather?: string
+  weather?: string,
+  warnings?: string[]
 ): Promise<MarketEvent> {
   const recentHeadlines = recentEvents
     .filter(e => e.visible)
@@ -29,6 +30,13 @@ async function generatePublicEvent(
 
 예시 주제: 음료 트렌드 변화, 원자재 가격 변동, 소비자 선호도 변화, 날씨/계절 이벤트,
 대형 행사(축제/시험기간), 경기 변동, 건강 트렌드, 신제품 출시, 물류 파업 등
+
+## 출력 규칙 (엄격)
+- **오직 JSON 객체 하나만** 출력. 앞뒤로 텍스트·머릿말·설명·맺음말 금지.
+- 마크다운 코드블록(\`\`\`json, \`\`\`) **절대 금지**. 괄호 \`{\`로 시작, \`}\`로 끝.
+- JSON 내부 주석(//, /* */) 금지. 값은 모두 큰따옴표 문자열 또는 숫자.
+- 아래 형식에서 키 이름·구조 일체 변경 금지. 모든 키를 포함해서 출력.
+- 응답이 위 규칙을 어기면 파싱 실패로 간주되어 유저에게 경고가 표시됩니다.
 
 반드시 아래 JSON 형식으로만 응답:
 {
@@ -48,12 +56,16 @@ effects 범위:
 - customerTraffic: 0.5~1.5 (전체 유동인구)
 - deliveryDelayGlobal: 0~2 (전체 배송 지연일)
 - priceShift: -0.2~0.3 (도매가 변동률, 예: 0.1이면 10% 상승)`),
-      new HumanMessage(`${day}일차, 날짜: ${dateStr || '미정'}, 계절: ${season}, 날씨: ${weather || '미정'}${recentHeadlines ? `\n최근 뉴스: ${recentHeadlines}\n(이전과 다른 주제로 생성하되, 현재 날짜와 계절, 날씨를 반영하세요)` : '\n현재 날짜와 계절, 날씨에 맞는 뉴스를 생성하세요.'}`),
+      new HumanMessage(`${day}일차, 날짜: ${dateStr || '미정'}, 계절: ${season}, 날씨: ${weather || '미정'}${recentHeadlines ? `\n최근 뉴스: ${recentHeadlines}\n(이전과 다른 주제로 생성하되, 현재 날짜와 계절, 날씨를 반영하세요)` : '\n현재 날짜와 계절, 날씨에 맞는 뉴스를 생성하세요.'}\n\nJSON 객체 하나만 출력하세요.`),
     ]);
 
     const text = typeof response.content === 'string' ? response.content : '';
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
+    if (!jsonMatch) {
+      warnings?.push(`공개 이벤트 LLM 응답에서 JSON을 찾지 못해 폴백 사용 (원본: "${text.slice(0, 120)}")`);
+      return fallbackPublicEvent(day);
+    }
+    try {
       const parsed = JSON.parse(jsonMatch[0]);
       return {
         id: `PUB-${day}-${Math.random().toString(36).slice(2, 6)}`,
@@ -65,9 +77,15 @@ effects 범위:
         effects: clampEffects(parsed.effects || {}),
         expiresDay: day + 7,
       };
+    } catch (parseErr) {
+      const msg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+      warnings?.push(`공개 이벤트 JSON 파싱 실패 → 폴백 사용 (${msg.slice(0, 80)})`);
+      return fallbackPublicEvent(day);
     }
   } catch (error) {
-    console.warn('Public event generation failed:', error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.warn('Public event generation failed:', msg);
+    warnings?.push(`공개 이벤트 LLM 호출 실패 → 폴백 사용 (${msg.slice(0, 100)})`);
   }
 
   return fallbackPublicEvent(day);
@@ -84,7 +102,8 @@ async function generateHiddenEvent(
   vendor: LlmVendor = 'anthropic',
   apiKey?: string,
   dateStr?: string,
-  weather?: string
+  weather?: string,
+  warnings?: string[]
 ): Promise<MarketEvent> {
   const recentHidden = recentEvents
     .filter(e => !e.visible)
@@ -103,6 +122,13 @@ async function generateHiddenEvent(
 운송업체 내부 문제, 원자재 공급망 변동, 경쟁 자판기 설치/철거,
 동네 행사, 학교 시험기간, 날씨 예보 오류 등
 
+## 출력 규칙 (엄격)
+- **오직 JSON 객체 하나만** 출력. 앞뒤로 텍스트·머릿말·설명·맺음말 금지.
+- 마크다운 코드블록(\`\`\`json, \`\`\`) **절대 금지**. 괄호 \`{\`로 시작, \`}\`로 끝.
+- JSON 내부 주석 금지. 값은 모두 큰따옴표 문자열 또는 숫자.
+- 아래 형식에서 키 이름·구조 일체 변경 금지. 모든 키를 포함해서 출력.
+- 응답이 위 규칙을 어기면 파싱 실패로 간주되어 유저에게 경고가 표시됩니다.
+
 반드시 아래 JSON 형식으로만 응답:
 {
   "headline": "헤드라인 (15자 이내)",
@@ -117,12 +143,16 @@ async function generateHiddenEvent(
 }
 
 효과는 미묘하되 의미 있게 (수요 0.7~1.4, 유동인구 0.7~1.3 범위)`),
-      new HumanMessage(`${day}일차, 날짜: ${dateStr || '미정'}, 계절: ${season}, 날씨: ${weather || '미정'}${recentHidden ? `\n최근 숨겨진 이벤트: ${recentHidden}\n(다른 주제로, 현재 날짜와 계절, 날씨를 반영하세요)` : '\n현재 날짜와 계절, 날씨에 맞는 이벤트를 생성하세요.'}`),
+      new HumanMessage(`${day}일차, 날짜: ${dateStr || '미정'}, 계절: ${season}, 날씨: ${weather || '미정'}${recentHidden ? `\n최근 숨겨진 이벤트: ${recentHidden}\n(다른 주제로, 현재 날짜와 계절, 날씨를 반영하세요)` : '\n현재 날짜와 계절, 날씨에 맞는 이벤트를 생성하세요.'}\n\nJSON 객체 하나만 출력하세요.`),
     ]);
 
     const text = typeof response.content === 'string' ? response.content : '';
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
+    if (!jsonMatch) {
+      warnings?.push(`숨겨진 이벤트 LLM 응답에서 JSON을 찾지 못해 폴백 사용 (원본: "${text.slice(0, 120)}")`);
+      return fallbackHiddenEvent(day);
+    }
+    try {
       const parsed = JSON.parse(jsonMatch[0]);
       return {
         id: `HID-${day}-${Math.random().toString(36).slice(2, 6)}`,
@@ -134,9 +164,15 @@ async function generateHiddenEvent(
         effects: clampEffects(parsed.effects || {}),
         expiresDay: day + 3,
       };
+    } catch (parseErr) {
+      const msg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+      warnings?.push(`숨겨진 이벤트 JSON 파싱 실패 → 폴백 사용 (${msg.slice(0, 80)})`);
+      return fallbackHiddenEvent(day);
     }
   } catch (error) {
-    console.warn('Hidden event generation failed:', error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.warn('Hidden event generation failed:', msg);
+    warnings?.push(`숨겨진 이벤트 LLM 호출 실패 → 폴백 사용 (${msg.slice(0, 100)})`);
   }
 
   return fallbackHiddenEvent(day);
@@ -207,7 +243,8 @@ export async function updateMarketEvents(
   vendor: LlmVendor = 'anthropic',
   apiKey?: string,
   dateStr?: string,
-  weather?: string
+  weather?: string,
+  warnings?: string[]
 ): Promise<MarketEvent[]> {
   // 만료된 이벤트 제거
   const events = currentEvents.filter(e => e.expiresDay > day);
@@ -223,10 +260,10 @@ export async function updateMarketEvents(
     const roll = Math.random();
     const publicCount = roll < 0.60 ? 1 : roll < 0.95 ? 2 : 3;
     for (let i = 0; i < publicCount; i++) {
-      promises.push(generatePublicEvent(day, season, events, vendor, apiKey, dateStr, weather));
+      promises.push(generatePublicEvent(day, season, events, vendor, apiKey, dateStr, weather, warnings));
     }
   }
-  if (needHidden) promises.push(generateHiddenEvent(day, season, events, vendor, apiKey, dateStr, weather));
+  if (needHidden) promises.push(generateHiddenEvent(day, season, events, vendor, apiKey, dateStr, weather, warnings));
 
   const newEvents = await Promise.all(promises);
   return [...events, ...newEvents];

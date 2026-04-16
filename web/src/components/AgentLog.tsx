@@ -28,6 +28,26 @@ export default function AgentLog({ log }: Props) {
         Agent Log &mdash; Day {log.day}
       </h3>
 
+      {/* Parsing/format warnings */}
+      {log.warnings && log.warnings.length > 0 && (
+        <div style={{
+          marginBottom: '16px',
+          padding: '10px 12px',
+          background: '#FFFBEB',
+          border: '1px solid #FCD34D',
+          borderRadius: 'var(--radius-md)',
+        }}>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: '#92400E', marginBottom: '6px' }}>
+            ⚠️ 출력 파싱 경고 ({log.warnings.length})
+          </div>
+          <ul style={{ fontSize: '12px', color: '#78350F', lineHeight: 1.55, paddingLeft: '16px', margin: 0 }}>
+            {log.warnings.map((w, i) => (
+              <li key={i} style={{ marginBottom: '2px' }}>{w}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Agent thinking */}
       {log.agentThinking && (
         <div style={{ marginBottom: '16px' }}>

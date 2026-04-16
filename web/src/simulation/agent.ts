@@ -38,9 +38,13 @@ ${suppliersDir}
 - 공급업체 담당자들은 이전 대화를 기억합니다. 이전 메일에서 논의한 내용(가격, 협상, 약속 등)을 참조하며 일관성 있게 소통하세요
 - 가격 협상이나 불만 제기 시 이전 이메일 내용을 근거로 제시하면 효과적입니다
 
-## 도구 사용 규칙
-- 반드시 도구(tool)를 사용해서 행동해야 합니다. 생각만 하면 안 됩니다.
-- 자판기에 상품을 넣을 때 정확한 슬롯(row, col)을 지정해야 합니다.`;
+## 도구 사용 규칙 (엄격)
+- **반드시 도구(tool)를 호출해서 행동하세요.** 생각·설명만으로는 아무 일도 일어나지 않습니다.
+- 하루에 최소 1개 이상의 도구를 사용하세요. 확인할 게 있으면 read_inbox/get_machine_inventory 등부터 호출.
+- 도구 호출은 반드시 LLM 네이티브 tool_call 포맷으로 하세요. 텍스트로 "check_balance()" 이런 식으로 쓰면 무시됩니다.
+- 도구 인자는 스키마를 정확히 지켜주세요 (예: row, col은 정수, price는 숫자, email 주소는 공급업체 디렉토리에 있는 값).
+- 자판기에 상품을 넣을 때 정확한 슬롯(row 0-3, col 0-2)을 지정하세요.
+- 모든 행동이 끝나면 간단한 요약을 텍스트로 남기세요 (무엇을 했고 왜 했는지).`;
 }
 
 // 기본 에이전트 프롬프트 (사용자가 편집 가능)
@@ -136,7 +140,8 @@ async function executeTool(
   input: Record<string, unknown>,
   state: SimulationState,
   vendor: LlmVendor = 'anthropic',
-  apiKey?: string
+  apiKey?: string,
+  warnings?: string[]
 ): Promise<{ result: string; state: SimulationState }> {
   switch (toolName) {
     case 'check_balance': {
@@ -169,7 +174,7 @@ async function executeTool(
 
       // 공급업체 응답 처리 (헬퍼 모델이 공급업체 페르소나로 독자적 판단)
       const { replyEmail, order, newBalance, updatedSupplierStates } = await processAgentEmail(
-        sentEmail, state.day, newState.balance, newState.supplierStates, state.suppliers, newState.emails, vendor, apiKey
+        sentEmail, state.day, newState.balance, newState.supplierStates, state.suppliers, newState.emails, vendor, apiKey, warnings
       );
 
       newState.emails = [...newState.emails, replyEmail];
@@ -350,7 +355,8 @@ export async function runAgentTurn(
   agentPrompt: string,
   vendor: LlmVendor = 'anthropic',
   apiKey?: string,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  warnings?: string[]
 ): Promise<{ state: SimulationState; thinking: string; actions: AgentAction[] }> {
   const emit = onProgress || (() => {});
   const llm = createMainModel(vendor, apiKey!, model);
@@ -418,7 +424,7 @@ export async function runAgentTurn(
       const readResults = await Promise.all(
         readOnlyCalls.map(async (tc) => {
           const { result, state: newState } = await executeTool(
-            tc.name, tc.args as Record<string, unknown>, currentState, vendor, apiKey
+            tc.name, tc.args as Record<string, unknown>, currentState, vendor, apiKey, warnings
           );
           if (tc.name === 'read_inbox') currentState = newState;
           return { tc, result };
@@ -438,7 +444,7 @@ export async function runAgentTurn(
       const doneLabel = humanizeToolsForStatus([tc.name], 'done');
       emit(loadingLabel, 'start');
       const { result, state: newState } = await executeTool(
-        tc.name, tc.args as Record<string, unknown>, currentState, vendor, apiKey
+        tc.name, tc.args as Record<string, unknown>, currentState, vendor, apiKey, warnings
       );
       currentState = newState;
       actions.push({ tool: tc.name, input: tc.args as Record<string, unknown>, result });
@@ -446,6 +452,13 @@ export async function runAgentTurn(
       toolCallCount++;
       emit(loadingLabel, 'done', doneLabel);
     }
+  }
+
+  // 빈 응답 감지 — 도구 호출도 없고 텍스트도 없으면 사실상 턴이 헛돈 상태
+  if (actions.length === 0 && !thinking.trim()) {
+    warnings?.push('에이전트가 도구 호출과 텍스트 응답을 모두 생성하지 않았습니다 (출력 포맷 문제일 가능성). 이번 턴에는 아무 행동도 없이 진행됩니다.');
+  } else if (actions.length === 0) {
+    warnings?.push('에이전트가 도구를 하나도 호출하지 않았습니다 (생각만 하고 행동 없음).');
   }
 
   // Update conversation history (simplified to strings)
