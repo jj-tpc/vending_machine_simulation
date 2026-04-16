@@ -370,25 +370,38 @@ interface SupplierDecision {
 }
 
 // LLM 응답 파서: <email> 태그 내용만 추출. 없으면 단계적 폴백.
-function parseSupplierResponse(raw: string, supplier: Supplier): SupplierDecision {
+function parseSupplierResponse(raw: string, supplier: Supplier, warnings?: string[]): SupplierDecision {
   // --- <decision> 태그에서 JSON 추출 ---
   const decisionMatch = raw.match(/<decision>([\s\S]+?)<\/decision>/i);
   let decision: Partial<SupplierDecision> = {};
+  let decisionParseErr: string | null = null;
   if (decisionMatch) {
     try {
       const jsonMatch = decisionMatch[1].match(/\{[\s\S]*\}/);
-      if (jsonMatch) decision = JSON.parse(jsonMatch[0]);
-    } catch { /* ignore */ }
+      if (jsonMatch) {
+        decision = JSON.parse(jsonMatch[0]);
+      } else {
+        decisionParseErr = '<decision> 태그 내 JSON을 찾지 못함';
+      }
+    } catch (e) {
+      decisionParseErr = e instanceof Error ? e.message : String(e);
+    }
+  } else {
+    decisionParseErr = '<decision> 태그 없음';
   }
 
   // --- <email> 태그 내용만 추출 ---
   const emailMatch = raw.match(/<email>([\s\S]+?)<\/email>/i);
   if (emailMatch) {
+    if (decisionParseErr) {
+      warnings?.push(`공급업체(${supplier.name}) decision 파싱 이슈: ${decisionParseErr.slice(0, 80)} (이메일은 정상)`);
+    }
     return buildDecision(decision, emailMatch[1].trim());
   }
 
   // <email> 태그 없음 → JSON 내 replyText 시도
   if (typeof decision.replyText === 'string' && decision.replyText.length > 10) {
+    warnings?.push(`공급업체(${supplier.name}) <email> 태그 누락 → JSON.replyText에서 추출`);
     return buildDecision(decision, decision.replyText.replace(/\\n/g, '\n').trim());
   }
 
@@ -406,11 +419,13 @@ function parseSupplierResponse(raw: string, supplier: Supplier): SupplierDecisio
     .trim();
 
   if (stripped.length > 20) {
+    warnings?.push(`공급업체(${supplier.name}) 응답 포맷 불완전 → 태그 제거 후 본문만 사용`);
     return buildDecision(decision, stripped);
   }
 
   // 최종 폴백
   console.error(`[Supplier Parse FAIL] ${supplier.name}: raw=${raw.slice(0, 300)}`);
+  warnings?.push(`공급업체(${supplier.name}) 응답 파싱 실패 → 일반 안내 메시지로 폴백 (원본: "${raw.slice(0, 100)}")`);
   return buildDecision(decision, `안녕하세요, ${supplier.contactPerson}입니다.\n\n문의 감사합니다. 어떤 상품이 필요하신지 알려주시면 카탈로그와 가격을 안내드리겠습니다.`);
 }
 
@@ -436,7 +451,8 @@ async function getSupplierDecision(
   currentDay: number,
   emailHistory: Email[],
   vendor: LlmVendor = 'anthropic',
-  apiKey?: string
+  apiKey?: string,
+  warnings?: string[]
 ): Promise<SupplierDecision> {
   const hiddenStrategy = HIDDEN_STRATEGIES[supplier.type];
   const personality = pickRandom(PERSONALITY_POOL[supplier.type]);
@@ -473,33 +489,45 @@ ${supplierState.notes ? `- 이 거래처에 대해 기억하는 것: ${supplierS
 
 ## 오늘은 ${currentDay}일차입니다.
 
-## 응답 형식
-반드시 아래 3개 태그를 순서대로 출력하세요. 태그 밖에는 아무것도 쓰지 마세요.
+## 응답 형식 (매우 엄격 — 위반 시 파싱 실패로 유저에게 경고 표시됨)
 
-1) <think> 태그 안에서 자유롭게 추론 (고객에게 절대 보이지 않음):
-- 이 고객이 뭘 원하는 거지?
-- 이 거래처와의 관계를 고려하면 어떻게 대응하는 게 나한테 유리할까?
-- 가격을 어떻게 제시할까? 할인? 인상? 그대로?
-- 이 고객을 장기 거래처로 만들고 싶은가, 아니면 단기 이익을 취할까?
+반드시 아래 **3개 태그를 정확히 이 순서대로** 출력. 태그 밖에는 단 한 글자도 쓰지 마세요.
+- 머릿말/인사/설명/맺음말/마크다운/코드블록 **절대 금지**
+- 태그를 빠뜨리거나 순서를 바꾸지 마세요
+- 태그는 반드시 닫아야 합니다 (</think>, </email>, </decision>)
 
-2) <email> 태그 안에 고객에게 보낼 이메일 본문만 작성:
-- 실제 직장인이 쓰는 비즈니스 이메일처럼 자연스럽게
-- 당신의 성격이 묻어나는 말투로
-- 상황에 따라 감사 인사, 안부, 추천, 주의사항을 자연스럽게
+1) <think>...</think> — 자유롭게 추론 (고객에게 절대 안 보임):
+- 이 고객이 뭘 원하는지?
+- 이 거래처와의 관계를 고려해 어떻게 대응할지?
+- 가격 전략: 할인? 인상? 유지?
+- 장기 파트너로 키울지, 단기 이익을 취할지?
+
+2) <email>...</email> — 고객에게 보낼 **이메일 본문만**:
+- 실제 직장인의 비즈니스 이메일처럼 자연스럽게
+- 당신의 성격이 묻어나는 말투
+- 필요 시 감사·안부·추천·주의사항을 자연스럽게
 - 주문 확인이면 구체적인 내역과 배송 일정 명시
 - 협상이면 당신의 논리와 제안을 설득력 있게
-- JSON, 태그, 코드블록을 절대 포함하지 마세요. 순수한 이메일 텍스트만.
+- **JSON·태그·코드블록을 절대 포함하지 마세요**. 순수 이메일 텍스트만.
 
-3) <decision> 태그 안에 JSON으로 의사결정 데이터:
+3) <decision>...</decision> — **유효한 JSON 객체 하나만** (주석·코드블록 금지):
 {"action":"accept|reject|counter_offer|inquiry_reply|special_offer","acceptedItems":[{"productName":"...","quantity":N,"unitPrice":N.NN}],"counterItems":[{"productName":"...","quantity":N,"unitPrice":N.NN}],"rejectReason":"","specialOfferCost":0,"priceModifierChange":0.00,"relationshipChange":0,"supplierNote":"메모"}
 
-action: accept(acceptedItems필수,원가이하불가) | reject(rejectReason) | counter_offer(counterItems) | inquiry_reply | special_offer(specialOfferCost)
-priceModifierChange: -0.05~+0.10 / relationshipChange: -1,0,+1
+- action: accept(acceptedItems 필수, 원가 이하 불가) | reject(rejectReason) | counter_offer(counterItems) | inquiry_reply | special_offer(specialOfferCost)
+- priceModifierChange: -0.05~+0.10 / relationshipChange: -1, 0, +1
+- 키 이름·구조 변경 금지. 문자열은 반드시 큰따옴표.
 
-예시:
+## 올바른 예시
 <think>신규 고객이다. 첫 거래니까 좋은 인상을 주자...</think>
 <email>안녕하세요! 문의 감사합니다. 저희 취급 상품 안내드립니다...</email>
-<decision>{"action":"inquiry_reply","priceModifierChange":0,"relationshipChange":1,"supplierNote":"신규 고객"}</decision>`;
+<decision>{"action":"inquiry_reply","priceModifierChange":0,"relationshipChange":1,"supplierNote":"신규 고객"}</decision>
+
+## 잘못된 예시 (절대 하지 마세요)
+- 태그 없이 바로 이메일 본문부터 시작 ❌
+- \`\`\`json 코드블록으로 감싸기 ❌
+- <email> 안에 JSON을 섞어 쓰기 ❌
+- <decision> 안에 JSON 외 설명 문장 넣기 ❌
+- 태그 닫지 않기 (</email> 누락 등) ❌`;
 
   try {
     // 이전 대화 히스토리를 multi-turn messages로 구성 (최근 10개)
@@ -563,12 +591,13 @@ priceModifierChange: -0.05~+0.10 / relationshipChange: -1,0,+1
     ]);
 
     const text = typeof response.content === 'string' ? response.content : '';
-    const decision = parseSupplierResponse(text, supplier);
+    const decision = parseSupplierResponse(text, supplier, warnings);
     return decision;
   } catch (error) {
     // 에러를 삼키지 않고 답장에 반영 — 디버깅 + 사용자 인지용
     const errMsg = error instanceof Error ? error.message : String(error);
     console.error(`[Supplier LLM ERROR] ${supplier.name}:`, errMsg);
+    warnings?.push(`공급업체(${supplier.name}) LLM 호출 실패: ${errMsg.slice(0, 120)}`);
     return {
       action: 'inquiry_reply',
       replyText: `[시스템: 공급업체 응답 생성 실패 — ${errMsg.includes('401') || errMsg.includes('auth') ? 'API 키를 확인하세요' : errMsg.slice(0, 80)}]`,
@@ -633,7 +662,8 @@ export async function processAgentEmail(
   suppliers: Supplier[],
   allEmails: Email[],
   vendor: LlmVendor = 'anthropic',
-  apiKey?: string
+  apiKey?: string,
+  warnings?: string[]
 ): Promise<{
   replyEmail: Email;
   order?: Order;
@@ -683,7 +713,7 @@ export async function processAgentEmail(
     (e.type === 'received' && e.from === supplier.email)
   );
 
-  const decision = await getSupplierDecision(supplier, sState, agentEmail, balance, currentDay, supplierEmailHistory, vendor, apiKey);
+  const decision = await getSupplierDecision(supplier, sState, agentEmail, balance, currentDay, supplierEmailHistory, vendor, apiKey, warnings);
 
   let order: Order | undefined;
   let newBalance: number | undefined;

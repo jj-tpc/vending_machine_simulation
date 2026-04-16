@@ -28,7 +28,8 @@ export async function generateMarketCondition(
   startDate: string,
   recentHistory?: MarketCondition[],
   vendor: LlmVendor = 'anthropic',
-  apiKey?: string
+  apiKey?: string,
+  warnings?: string[]
 ): Promise<MarketCondition> {
   const date = addDays(startDate, day - 1);
   const month = date.getMonth() + 1;
@@ -47,19 +48,34 @@ export async function generateMarketCondition(
   try {
     const llm = createHelperModel(vendor, apiKey!, 20);
     const response = await llm.invoke([
-      new SystemMessage('날씨를 결정하는 시뮬레이터입니다. 반드시 sunny, cloudy, rainy, hot, cold 중 하나만 출력하세요. 다른 말은 하지 마세요. 현실적인 날씨 변화를 반영하되, 같은 날씨가 3일 이상 지속되면 변화를 줘야 합니다.'),
-      new HumanMessage(`날짜: ${dateStr} (${dayOfWeek}), 계절: ${season}, 월: ${month}월${recentWeather ? `\n최근 날씨: ${recentWeather}\n같은 날씨가 계속되고 있다면 변화를 주세요.` : ''}\n\n오늘의 날씨는?`),
+      new SystemMessage(`날씨를 결정하는 시뮬레이터입니다.
+
+## 출력 규칙 (엄격)
+- 반드시 다음 5개 단어 중 **정확히 하나**만 출력: sunny | cloudy | rainy | hot | cold
+- 소문자 영어 단어만. 공백/문장부호/설명/이모지/따옴표/코드블록 전부 금지.
+- 추가 문장·머릿말·맺음말 절대 금지. 오직 단어 하나.
+
+## 결정 기준
+- 계절·월·최근 날씨 흐름을 고려한 현실적인 연속성
+- 같은 날씨가 3일 이상 지속 중이면 다른 날씨로 변경`),
+      new HumanMessage(`날짜: ${dateStr} (${dayOfWeek}), 계절: ${season}, 월: ${month}월${recentWeather ? `\n최근 날씨: ${recentWeather}\n같은 날씨가 계속되고 있다면 변화를 주세요.` : ''}\n\n오늘의 날씨는? (단어 하나만)`),
     ]);
 
     const text = (typeof response.content === 'string' ? response.content : '')
       .trim().toLowerCase();
 
     // 유효한 날씨인지 확인
-    const weather = VALID_WEATHER.find(w => text.includes(w)) || 'sunny';
+    const match = VALID_WEATHER.find(w => text.includes(w));
+    if (!match) {
+      warnings?.push(`날씨 LLM 응답 형식 오류 → sunny로 폴백 (원본: "${text.slice(0, 80)}")`);
+      return { day, dayOfWeek, weather: 'sunny', season, date: dateStr };
+    }
 
-    return { day, dayOfWeek, weather, season, date: dateStr };
+    return { day, dayOfWeek, weather: match, season, date: dateStr };
   } catch (error) {
-    console.error('[Weather LLM ERROR]', error instanceof Error ? error.message : error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('[Weather LLM ERROR]', msg);
+    warnings?.push(`날씨 LLM 호출 실패 → 폴백 적용 (${msg.slice(0, 100)})`);
     return {
       day,
       dayOfWeek,

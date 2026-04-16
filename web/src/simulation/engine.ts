@@ -62,6 +62,7 @@ export async function executeTurn(
   onProgress?: ProgressCallback
 ): Promise<TurnResponse> {
   const emit = onProgress || (() => {});
+  const warnings: string[] = [];
   let currentState = { ...state, day: state.day + 1 };
   const { suppliers } = currentState;
 
@@ -102,11 +103,11 @@ export async function executeTurn(
   // 3. 날씨 생성 (먼저 실행 - 날짜/계절 정보 확보)
   emit('시장 상황 분석하는 중...', 'start');
   const recentMarkets = currentState.history.slice(-5).map(h => h.market);
-  const market = await generateMarketCondition(currentState.day, currentState.startDate, recentMarkets, vendor, apiKey);
+  const market = await generateMarketCondition(currentState.day, currentState.startDate, recentMarkets, vendor, apiKey, warnings);
 
   // 4. 시장 이벤트 갱신 (날짜, 계절, 날씨 정보 전달)
   const updatedMarketEvents = await updateMarketEvents(
-    currentState.marketEvents, currentState.day, market.season, vendor, apiKey, market.date, market.weather
+    currentState.marketEvents, currentState.day, market.season, vendor, apiKey, market.date, market.weather, warnings
   );
 
   currentState.marketEvents = updatedMarketEvents;
@@ -118,7 +119,7 @@ export async function executeTurn(
 
   // 6. AI 에이전트 실행
   emit('자판기 에이전트 일하는 중...', 'start');
-  const agentResult = await runAgentTurn(currentState, morningReport, model, agentPrompt, vendor, apiKey, emit);
+  const agentResult = await runAgentTurn(currentState, morningReport, model, agentPrompt, vendor, apiKey, emit, warnings);
   currentState = agentResult.state;
   emit('자판기 에이전트 일하는 중...', 'done', '자판기 에이전트 작업 완료');
 
@@ -157,6 +158,7 @@ export async function executeTurn(
     deliveries: deliveryResult.delivered,
     balanceAfter: currentState.balance,
     netWorth,
+    warnings: warnings.length > 0 ? warnings : undefined,
   };
 
   currentState.history = [...currentState.history, turnLog];
