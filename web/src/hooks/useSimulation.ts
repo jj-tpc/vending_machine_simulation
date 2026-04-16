@@ -4,28 +4,41 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { SimulationState, TurnLog, TurnResponse, StartResponse, ModelInfo, LlmVendor } from '@/simulation/types';
 import { DEFAULT_AGENT_PROMPT } from '@/simulation/agent';
 
+// API 키 입력 전 폴백 목록. 키를 넣으면 /api/models가 Anthropic SDK로 실제 카탈로그를 불러와 덮어씁니다.
 const DEFAULT_MODELS: Record<LlmVendor, ModelInfo[]> = {
   anthropic: [
+    { id: 'claude-opus-4-6', name: 'Claude Opus 4.6', createdAt: '' },
+    { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', createdAt: '' },
+    { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5', createdAt: '' },
     { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', createdAt: '' },
     { id: 'claude-haiku-4-20250414', name: 'Claude Haiku 4', createdAt: '' },
   ],
   openai: [
-    { id: 'gpt-4o', name: 'GPT-4o', createdAt: '' },
-    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', createdAt: '' },
+    { id: 'gpt-5.4', name: 'GPT-5.4', createdAt: '' },
+    { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini', createdAt: '' },
+    { id: 'gpt-5', name: 'GPT-5', createdAt: '' },
+    { id: 'gpt-5-mini', name: 'GPT-5 Mini', createdAt: '' },
+    { id: 'gpt-5-nano', name: 'GPT-5 Nano', createdAt: '' },
     { id: 'gpt-4.1', name: 'GPT-4.1', createdAt: '' },
     { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', createdAt: '' },
+    { id: 'gpt-4o', name: 'GPT-4o', createdAt: '' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', createdAt: '' },
   ],
   gemini: [
-    { id: 'gemini-2.5-pro-preview-05-06', name: 'Gemini 2.5 Pro', createdAt: '' },
-    { id: 'gemini-2.5-flash-preview-04-17', name: 'Gemini 2.5 Flash', createdAt: '' },
+    { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro (preview)', createdAt: '' },
+    { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash (preview)', createdAt: '' },
+    { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite', createdAt: '' },
+    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', createdAt: '' },
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', createdAt: '' },
+    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', createdAt: '' },
     { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', createdAt: '' },
   ],
 };
 
 const DEFAULT_MODEL: Record<LlmVendor, string> = {
-  anthropic: 'claude-sonnet-4-20250514',
-  openai: 'gpt-4o',
-  gemini: 'gemini-2.5-flash-preview-04-17',
+  anthropic: 'claude-sonnet-4-6',
+  openai: 'gpt-5.4-mini',
+  gemini: 'gemini-3.1-flash-lite',
 };
 
 export interface LoadingStep {

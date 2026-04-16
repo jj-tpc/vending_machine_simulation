@@ -6,8 +6,8 @@ import { LlmVendor } from './types';
 
 const HELPER_MODELS: Record<LlmVendor, string> = {
   anthropic: 'claude-haiku-4-5-20251001',
-  openai: 'gpt-5.4-nano',
-  gemini: 'gemini-3.1-flash-lite',
+  openai: 'gpt-5-nano',
+  gemini: 'gemini-3.1-flash-lite-preview',
 };
 
 export function createMainModel(
