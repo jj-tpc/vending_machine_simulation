@@ -206,36 +206,67 @@ export function useSimulation(): UseSimulationReturn {
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let finalReceived = false;
+
+      const processLine = (rawLine: string) => {
+        const dataLine = rawLine.trim();
+        if (!dataLine.startsWith('data: ')) return;
+        let json: { type: string; [key: string]: unknown };
+        try {
+          json = JSON.parse(dataLine.slice(6));
+        } catch (parseErr) {
+          const snippet = dataLine.slice(0, 200);
+          throw new Error(`서버 응답 JSON 파싱 실패: ${parseErr instanceof Error ? parseErr.message : 'unknown'} (원본: "${snippet}")`);
+        }
+
+        if (json.type === 'progress') {
+          handleProgress(json.step as string, json.status as 'start' | 'done', json.doneLabel as string | undefined);
+        } else if (json.type === 'result') {
+          finalReceived = true;
+          const data = json as unknown as TurnResponse;
+          setState(data.state);
+          setCurrentLog(data.log);
+          setAllLogs(prev => [...prev, data.log]);
+
+          if (data.finished) {
+            setFinished(true);
+            setFinishReason(data.finishReason || null);
+          }
+        } else if (json.type === 'error') {
+          finalReceived = true;
+          throw new Error(json.error as string);
+        }
+      };
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          // 스트림 종료 시 디코더와 버퍼를 flush — 마지막 `\n\n`이 유실되거나
+          // 네트워크에서 줄바꿈이 잘려도 최종 메시지를 놓치지 않도록 방어.
+          buffer += decoder.decode();
+          const tail = buffer.split(/\n\n|\r\n\r\n/);
+          for (const line of tail) {
+            if (line.trim().startsWith('data: ')) processLine(line);
+          }
+          buffer = '';
+          break;
+        }
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n\n');
         buffer = lines.pop() || '';
 
         for (const line of lines) {
-          const dataLine = line.trim();
-          if (!dataLine.startsWith('data: ')) continue;
-          const json = JSON.parse(dataLine.slice(6));
-
-          if (json.type === 'progress') {
-            handleProgress(json.step, json.status, json.doneLabel);
-          } else if (json.type === 'result') {
-            const data = json as TurnResponse;
-            setState(data.state);
-            setCurrentLog(data.log);
-            setAllLogs(prev => [...prev, data.log]);
-
-            if (data.finished) {
-              setFinished(true);
-              setFinishReason(data.finishReason || null);
-            }
-          } else if (json.type === 'error') {
-            throw new Error(json.error);
-          }
+          processLine(line);
         }
+      }
+
+      if (!finalReceived) {
+        throw new Error(
+          '서버가 최종 결과(result/error) 이벤트를 보내지 않고 스트림을 종료했습니다. ' +
+          '서버 타임아웃(maxDuration 초과) 또는 네트워크 중단이 원인일 수 있습니다. ' +
+          '이번 턴은 서버에서 일부 실행되었을 수 있으니, 결과가 UI에 반영되지 않았다면 같은 상태로 다시 시도하세요.'
+        );
       }
 
       clearSteps();

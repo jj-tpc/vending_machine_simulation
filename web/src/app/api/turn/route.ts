@@ -2,7 +2,7 @@ import { executeTurn } from '@/simulation/engine';
 import { TurnRequest } from '@/simulation/types';
 import { DEFAULT_AGENT_PROMPT } from '@/simulation/agent';
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
   try {
