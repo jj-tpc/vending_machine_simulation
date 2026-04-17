@@ -7,7 +7,17 @@ import { weatherLabel, seasonLabel, dayOfWeekLabel } from '@/simulation/market';
 interface Props {
   state: SimulationState;
   log: TurnLog | null;
+  /** 진행된 최종 일차 (1-based; 0이면 로그 없음) */
+  tailDay: number;
+  /** null이면 Live tail, 숫자면 히스토리 cursor */
+  cursorDay: number | null;
+  /** day 번호 또는 null(Live)로 이동 */
+  onSeek: (day: number | null) => void;
 }
+
+// Scrubber 고정 폭·높이 — 터치 타깃 확보(16px pointer-area), 시각 트랙 6px
+const SCRUBBER_WIDTH = 180;
+const SCRUBBER_CURSOR_WIDTH = 2;
 
 // Speed: pixels per second (lower = slower)
 const TICKER_SPEED = 20;
@@ -26,7 +36,7 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
-function NewsLineImpl({ state, log }: Props) {
+function NewsLineImpl({ state, log, tailDay, cursorDay, onSeek }: Props) {
   const market = log?.market;
   const visibleEvents = state.marketEvents.filter(e => e.visible && e.expiresDay > state.day);
   const isWeekend = market && (market.dayOfWeek === 'sat' || market.dayOfWeek === 'sun');
@@ -104,32 +114,13 @@ function NewsLineImpl({ state, log }: Props) {
       minHeight: '40px',
       flexShrink: 0,
     }}>
-      {/* Day + Progress */}
-      <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
-        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Day</span>
-        <span style={{ fontSize: '14px', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-          {state.day}
-        </span>
-        <span style={{ fontSize: '12px', color: 'var(--text-quaternary)', fontVariantNumeric: 'tabular-nums' }}>/ {state.maxDays}</span>
-        <div style={{
-          width: '60px',
-          height: '4px',
-          background: 'var(--fill-light)',
-          borderRadius: '2px',
-          overflow: 'hidden',
-          marginLeft: '4px',
-        }}>
-          {/* transform: scaleX → GPU 가속, layout thrash 회피. 턴당 1회 업데이트여도 compositor-only path가 정직 */}
-          <div style={{
-            width: '100%',
-            height: '100%',
-            background: 'var(--accent-primary)',
-            borderRadius: '2px',
-            transformOrigin: 'left center',
-            transform: `scaleX(${Math.min(state.day / state.maxDays, 1)})`,
-            transition: 'transform 300ms ease',
-          }} />
+      {/* Day label + Scrubber — N일 / M일 표기 + 드래그/클릭/키보드 탐색 */}
+      <div className="flex items-center gap-3" style={{ flexShrink: 0 }}>
+        <div className="flex items-baseline gap-1" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          <span style={{ fontSize: '14px', fontWeight: 700 }}>{state.day}</span>
+          <span style={{ fontSize: '12px', color: 'var(--text-quaternary)' }}>/ {state.maxDays}일</span>
         </div>
+        <Scrubber tailDay={tailDay} maxDays={state.maxDays} cursorDay={cursorDay} onSeek={onSeek} />
       </div>
 
       <div style={{ width: '1px', height: '16px', background: 'var(--border-default)' }} />
@@ -219,5 +210,136 @@ function Pill({ label, highlight }: { label: string; highlight?: boolean }) {
     }}>
       {label}
     </span>
+  );
+}
+
+/**
+ * Turn Scrubber — 180×16 pointer-area, 6px 시각 트랙.
+ * Live tail 의미: cursorDay === null이면 tail 고정. 드래그/클릭은 allLogs[1..tailDay] 범위 내 snap.
+ * mechanical 정직함: cursor는 day-by-day snap, 연속 값 아님.
+ */
+function Scrubber({
+  tailDay,
+  maxDays,
+  cursorDay,
+  onSeek,
+}: {
+  tailDay: number;
+  maxDays: number;
+  cursorDay: number | null;
+  onSeek: (day: number | null) => void;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const disabled = tailDay === 0;
+  const effectiveCursor = cursorDay ?? tailDay;
+
+  const seekFromClientX = useCallback((clientX: number) => {
+    const el = trackRef.current;
+    if (!el || tailDay === 0) return;
+    const rect = el.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    // allLogs는 day 1부터 시작 → 최소 1, 최대 tailDay로 snap
+    const day = Math.max(1, Math.min(tailDay, Math.round(pct * tailDay)));
+    onSeek(day === tailDay ? null : day);
+  }, [tailDay, onSeek]);
+
+  // pointer drag — document-level listener로 트랙 밖에서도 drag 유지
+  useEffect(() => {
+    if (!dragging) return;
+    const handleMove = (e: PointerEvent) => seekFromClientX(e.clientX);
+    const handleUp = () => setDragging(false);
+    document.addEventListener('pointermove', handleMove);
+    document.addEventListener('pointerup', handleUp);
+    document.addEventListener('pointercancel', handleUp);
+    return () => {
+      document.removeEventListener('pointermove', handleMove);
+      document.removeEventListener('pointerup', handleUp);
+      document.removeEventListener('pointercancel', handleUp);
+    };
+  }, [dragging, seekFromClientX]);
+
+  // maxDays 기준 진행(fill): 트랙 전체가 maxDays. tailDay 지점까지가 "지난 일".
+  // maxDays 0 방어
+  const safeMax = Math.max(1, maxDays);
+  const tailScale = Math.min(tailDay / safeMax, 1);
+  // cursor translateX(px) — SCRUBBER_WIDTH 기준 선형 매핑
+  const cursorTranslate = (effectiveCursor / safeMax) * (SCRUBBER_WIDTH - SCRUBBER_CURSOR_WIDTH);
+
+  return (
+    <div
+      ref={trackRef}
+      role="slider"
+      aria-valuemin={Math.min(1, tailDay)}
+      aria-valuemax={Math.max(1, tailDay)}
+      aria-valuenow={effectiveCursor}
+      aria-valuetext={disabled
+        ? '로그 없음'
+        : `${effectiveCursor}일차 — 전체 ${maxDays}일 중 ${tailDay}일 진행됨`}
+      aria-disabled={disabled}
+      tabIndex={disabled ? -1 : 0}
+      onPointerDown={(e) => {
+        if (disabled) return;
+        e.preventDefault();
+        (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+        setDragging(true);
+        seekFromClientX(e.clientX);
+      }}
+      style={{
+        position: 'relative',
+        width: `${SCRUBBER_WIDTH}px`,
+        height: '16px',
+        display: 'flex',
+        alignItems: 'center',
+        cursor: disabled ? 'default' : 'pointer',
+        flexShrink: 0,
+        touchAction: 'none',
+        opacity: disabled ? 0.4 : 1,
+      }}
+    >
+      {/* Track base */}
+      <div style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: '50%',
+        transform: 'translateY(-50%)',
+        height: '6px',
+        background: 'var(--fill-light)',
+        borderRadius: '3px',
+        overflow: 'hidden',
+      }}>
+        {/* Played fill — tail까지 terracotta subtle */}
+        <div style={{
+          position: 'absolute',
+          left: 0, top: 0, bottom: 0,
+          width: '100%',
+          background: 'var(--accent-primary)',
+          opacity: 0.28,
+          transformOrigin: 'left center',
+          transform: `scaleX(${tailScale})`,
+          transition: 'transform 200ms ease',
+        }} />
+      </div>
+
+      {/* Cursor — 2px 수직 바, day-by-day snap */}
+      {!disabled && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: '2px',
+            bottom: '2px',
+            left: 0,
+            width: `${SCRUBBER_CURSOR_WIDTH}px`,
+            background: 'var(--accent-primary)',
+            borderRadius: '1px',
+            transform: `translateX(${cursorTranslate}px)`,
+            transition: dragging ? 'none' : 'transform 150ms ease-out',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+    </div>
   );
 }

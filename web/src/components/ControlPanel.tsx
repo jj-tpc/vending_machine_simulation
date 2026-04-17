@@ -125,7 +125,7 @@ export default function ControlPanel({
                   disabled={isLoading}
                   className="btn btn-primary"
                 >
-                  {isLoading ? '처리 중…' : '다음 턴'}
+                  {isLoading ? '처리 중…' : '다음 일'}
                 </button>
                 <button onClick={() => setShowResetConfirm(true)} disabled={isLoading} className="btn btn-ghost">
                   리셋

@@ -8,6 +8,12 @@ interface Props {
   log: TurnLog | null;
   allLogs: TurnLog[];
   finished: boolean;
+  /** 현재 cursor가 과거 일차를 보는 중인지 (Dashboard가 계산) */
+  isHistory?: boolean;
+  /** 진행된 최종 일차 — 히스토리 배지의 "최신({tailDay}일)으로" 표기에 사용 */
+  tailDay?: number;
+  /** "최신으로" 클릭 시 호출 — cursor를 null로 복귀 */
+  onReturnLive?: () => void;
   /** WarningStripe 클릭 시 호출 (Dashboard에서 Agent 탭으로 전환) */
   onInspectWarnings?: () => void;
 }
@@ -16,7 +22,7 @@ interface Props {
  * 턴 요약 히어로. 평등한 3-column 위에 두어 "이번 턴의 주인공 정보"를 선명히.
  * centered big-number hero 패턴 회피 — 좌측 정렬 logbook 스타일.
  */
-function TurnSummaryImpl({ log, allLogs, finished, onInspectWarnings }: Props) {
+function TurnSummaryImpl({ log, allLogs, finished, isHistory, tailDay, onReturnLive, onInspectWarnings }: Props) {
   // Hook은 조건부 return 이전에 호출해야 함 (rules-of-hooks)
   const { previousLog, salesDelta, salesDeltaPct, balanceDelta, netWorthDelta } = useMemo(() => {
     if (!log) return { previousLog: null, salesDelta: null, salesDeltaPct: null, balanceDelta: null, netWorthDelta: null };
@@ -57,9 +63,14 @@ function TurnSummaryImpl({ log, allLogs, finished, onInspectWarnings }: Props) {
         <WarningStripe count={log.warnings.length} onInspect={onInspectWarnings} />
       )}
 
-      {/* Turn label — .section-heading 컨벤션으로 통합. 날짜는 mono 보조로 분리 */}
+      {/* 히스토리 배지 — cursor가 과거 일차를 볼 때만. 좌측 정렬 hairline 레이블, opinionated signal */}
+      {isHistory && tailDay !== undefined && onReturnLive && (
+        <HistoryBadge cursorDay={log.day} tailDay={tailDay} onReturnLive={onReturnLive} />
+      )}
+
+      {/* Day label — 일차 어휘 통일, Turn 제거. 날짜는 mono 보조로 분리 */}
       <div className="section-heading" style={{ marginBottom: '8px' }}>
-        Turn {log.day}
+        {log.day}일차
         <span style={{
           margin: '0 8px',
           color: 'var(--text-quaternary)',
@@ -239,6 +250,56 @@ function WarningStripe({ count, onInspect }: { count: number; onInspect?: () => 
 }
 
 // 10×10 1-stroke 경고 삼각형 — ⚠ 유니코드(브라우저별로 emoji-colorize 갈림) 대체
+/**
+ * 히스토리 배지 — cursor가 tail보다 과거일 때만 TurnSummary 상단에 노출.
+ * "← N일 히스토리 보기 · 최신(M일)으로 →" 텍스트 링크 형태.
+ * opinionated: 이 배지의 존재 자체가 "지금 현재 아님" 신호 — 색/크기 튀지 않게 hairline 톤 유지.
+ */
+function HistoryBadge({
+  cursorDay,
+  tailDay,
+  onReturnLive,
+}: {
+  cursorDay: number;
+  tailDay: number;
+  onReturnLive: () => void;
+}) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        marginBottom: '10px',
+        fontSize: '11px',
+        color: 'var(--text-tertiary)',
+        fontVariantNumeric: 'tabular-nums',
+      }}
+    >
+      <span>← <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{cursorDay}일</strong> 히스토리 보기</span>
+      <span style={{ color: 'var(--text-quaternary)' }}>·</span>
+      <button
+        type="button"
+        onClick={onReturnLive}
+        style={{
+          background: 'none',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
+          color: 'var(--accent-primary)',
+          fontSize: '11px',
+          fontFamily: 'inherit',
+          fontWeight: 500,
+        }}
+      >
+        최신({tailDay}일)으로 →
+      </button>
+    </div>
+  );
+}
+
 function InlineCautionMark() {
   return (
     <svg

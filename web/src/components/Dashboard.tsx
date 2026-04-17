@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSimulation } from '@/hooks/useSimulation';
 import ControlPanel from './ControlPanel';
 import VendingMachineView from './VendingMachineView';
@@ -44,6 +44,69 @@ export default function Dashboard() {
   const [showSettings, setShowSettings] = useState(false);
   const [centerTab, setCenterTab] = useState<'agent' | 'email' | 'settings'>('agent');
 
+  // History cursor — null이면 Live tail. 숫자면 해당 일차의 로그를 표시(읽기 전용).
+  // 시뮬레이션 state(자판기·이메일·잔고)는 언제나 최신 유지.
+  const [cursorDay, setCursorDay] = useState<number | null>(null);
+  const tailDay = allLogs.length; // 진행된 최종 일차 (1-based; 0이면 로그 없음)
+  const isHistory = cursorDay !== null && cursorDay < tailDay;
+  // 로그 기반 패널이 볼 displayLog — 히스토리 모드면 allLogs[cursor-1], 아니면 현재
+  const displayLog = cursorDay !== null && cursorDay >= 1 && cursorDay <= tailDay
+    ? allLogs[cursorDay - 1]
+    : currentLog;
+  const returnToLive = useCallback(() => setCursorDay(null), []);
+
+  // "다음 일" 실행 시 cursor를 live로 복귀시킨 뒤 턴 진행 — 히스토리에 머문 채 새 턴이 묻히는 것 방지
+  const handleNextTurn = useCallback(() => {
+    setCursorDay(null);
+    nextTurn();
+  }, [nextTurn]);
+
+  // 리셋 시 cursor 초기화 (다음 사이클에서 history stale 값 방지)
+  const handleReset = useCallback(() => {
+    setSelectedEmailId(null);
+    setCursorDay(null);
+    reset();
+  }, [reset]);
+
+  // 키보드 단축키: ← → 탐색, Space 다음 일, Esc 최신으로. input/textarea 포커스·설정 모달 중엔 무시.
+  useEffect(() => {
+    if (!state) return;
+    const handleKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      // input/textarea/select는 타이핑 보호. button은 Space가 native click으로 처리되므로 스킵해 이중 발화 방지.
+      if (target && target.matches?.('input, textarea, select, button, [contenteditable="true"]')) return;
+      if (showSettings) return; // 설정 모달 열려있으면 Esc 충돌 피함
+      if (tailDay === 0) return;
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setCursorDay(prev => {
+          const curr = prev ?? tailDay;
+          return curr > 1 ? curr - 1 : curr;
+        });
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setCursorDay(prev => {
+          const curr = prev ?? tailDay;
+          if (curr + 1 >= tailDay) return null; // tail 도달 시 Live 복귀
+          return curr + 1;
+        });
+      } else if (e.key === 'Escape') {
+        if (cursorDay !== null) {
+          e.preventDefault();
+          setCursorDay(null);
+        }
+      } else if (e.key === ' ' || e.code === 'Space') {
+        if (!isLoading && !finished) {
+          e.preventDefault();
+          handleNextTurn();
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [state, tailDay, cursorDay, isLoading, finished, showSettings, handleNextTurn]);
+
   // 종료 ceremony: finished가 false → true로 뒤집힐 때 일회성 dim overlay를 재생
   const [dimActive, setDimActive] = useState(false);
   const dimPlayedForFinishRef = useRef(false);
@@ -84,11 +147,6 @@ export default function Dashboard() {
     />
   );
 
-  const handleReset = () => {
-    setSelectedEmailId(null);
-    reset();
-  };
-
   return (
     <div className="flex flex-col" style={{ background: 'var(--bg-primary)', height: '100vh', overflow: 'hidden', maxWidth: '1600px', margin: '0 auto', width: '100%' }}>
       {/* Top: Turn Interface */}
@@ -106,7 +164,7 @@ export default function Dashboard() {
           onStart={startSimulation}
           startDate={startDate}
           onChangeStartDate={setStartDate}
-          onNextTurn={nextTurn}
+          onNextTurn={handleNextTurn}
           onSkipTurns={skipTurns}
           onReset={handleReset}
         />
@@ -230,14 +288,23 @@ export default function Dashboard() {
             />
           )}
 
-          {/* News Line — 시장 컨텍스트 */}
-          <NewsLine state={state} log={currentLog} />
+          {/* News Line — 시장 컨텍스트 + turn scrubber */}
+          <NewsLine
+            state={state}
+            log={displayLog}
+            tailDay={tailDay}
+            cursorDay={cursorDay}
+            onSeek={setCursorDay}
+          />
 
-          {/* Turn Summary — 이번 턴의 주인공 정보 (delta 중심) */}
+          {/* Turn Summary — displayLog 기반 + 히스토리 배지 */}
           <TurnSummary
-            log={currentLog}
+            log={displayLog}
             allLogs={allLogs}
             finished={finished}
+            isHistory={isHistory}
+            tailDay={tailDay}
+            onReturnLive={returnToLive}
             onInspectWarnings={() => setCenterTab('agent')}
           />
 
@@ -313,7 +380,7 @@ export default function Dashboard() {
               {/* Tab content */}
               <div className="flex-1 overflow-y-auto p-4">
                 {centerTab === 'agent' && (
-                  <AgentLog log={currentLog} />
+                  <AgentLog log={displayLog} />
                 )}
                 {centerTab === 'email' && (
                   selectedEmail ? (
