@@ -319,10 +319,10 @@ export default function Dashboard() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '32px',
                 border: '1px solid var(--border-light)',
+                color: 'var(--text-secondary)',
               }}>
-                🏭
+                <VendingIcon />
               </div>
               <h2 className="display" style={{ fontSize: '34px', color: 'var(--text-primary)', marginBottom: '12px', lineHeight: 1.15 }}>
                 Vending Machine Simulation
@@ -384,7 +384,8 @@ export default function Dashboard() {
                   padding: '16px 20px',
                   color: 'var(--text-on-accent)',
                 }}>
-                  <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '4px' }}>
+                  {/* .display (Hedvig serif) 채택 — hero 컨벤션에 편입, 3번째 헤딩 타입 제거 */}
+                  <h3 className="display" style={{ fontSize: '18px', marginBottom: '4px', lineHeight: 1.2 }}>
                     게임 규칙
                   </h3>
                   <p style={{ fontSize: '11px', opacity: 0.85 }}>
@@ -408,6 +409,34 @@ export default function Dashboard() {
         </div>
       )}
     </div>
+  );
+}
+
+// 1-stroke 자판기 도면 아이콘 — 🏭 emoji 대체. mechanical + warm 톤 유지.
+function VendingIcon() {
+  return (
+    <svg
+      viewBox="0 0 32 40"
+      width="32"
+      height="40"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="3" width="26" height="34" rx="1.5" />
+      <line x1="23" y1="3" x2="23" y2="37" />
+      <line x1="3" y1="26" x2="23" y2="26" />
+      <line x1="10" y1="6" x2="10" y2="26" />
+      <line x1="16" y1="6" x2="16" y2="26" />
+      <line x1="3" y1="12" x2="23" y2="12" />
+      <line x1="3" y1="19" x2="23" y2="19" />
+      <rect x="5" y="29" width="16" height="5" rx="0.8" />
+      <line x1="25" y1="9" x2="27" y2="9" />
+      <line x1="25" y1="13" x2="27" y2="13" />
+    </svg>
   );
 }
 

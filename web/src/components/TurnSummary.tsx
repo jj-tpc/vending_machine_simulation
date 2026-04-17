@@ -61,15 +61,8 @@ function TurnSummaryImpl({ log, allLogs, finished, finishReason, onInspectWarnin
         <WarningStripe count={log.warnings.length} onInspect={onInspectWarnings} />
       )}
 
-      {/* Turn label — Date 포함해 스크린샷 crop 시에도 맥락 유지 */}
-      <div style={{
-        fontSize: '10px',
-        fontWeight: 700,
-        color: 'var(--text-tertiary)',
-        textTransform: 'uppercase',
-        letterSpacing: '0.1em',
-        marginBottom: '8px',
-      }}>
+      {/* Turn label — .section-heading 컨벤션으로 통합. 날짜는 mono 보조로 분리 */}
+      <div className="section-heading" style={{ marginBottom: '8px' }}>
         Turn {log.day}
         <span style={{
           margin: '0 8px',
@@ -243,7 +236,12 @@ function WarningStripe({ count, onInspect }: { count: number; onInspect?: () => 
   };
 
   if (!onInspect) {
-    return <div style={baseStyle}>⚠ 이번 턴 파싱 경고 {count}건 — AgentLog 확인</div>;
+    return (
+      <div style={baseStyle}>
+        <InlineCautionMark />
+        이번 턴 파싱 경고 {count}건 — AgentLog 확인
+      </div>
+    );
   }
 
   return (
@@ -259,7 +257,30 @@ function WarningStripe({ count, onInspect }: { count: number; onInspect?: () => 
       onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-warning-border)')}
       onMouseLeave={e => (e.currentTarget.style.background = 'var(--surface-warning)')}
     >
-      ⚠ 이번 턴 파싱 경고 {count}건 — AgentLog 확인 →
+      <InlineCautionMark />
+      이번 턴 파싱 경고 {count}건 — AgentLog 확인 →
     </button>
+  );
+}
+
+// 10×10 1-stroke 경고 삼각형 — ⚠ 유니코드(브라우저별로 emoji-colorize 갈림) 대체
+function InlineCautionMark() {
+  return (
+    <svg
+      viewBox="0 0 12 12"
+      width="10"
+      height="10"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ flexShrink: 0 }}
+    >
+      <path d="M6 1.5 L11 10.5 L1 10.5 Z" />
+      <line x1="6" y1="5" x2="6" y2="7.5" />
+      <circle cx="6" cy="9" r="0.55" fill="currentColor" stroke="none" />
+    </svg>
   );
 }

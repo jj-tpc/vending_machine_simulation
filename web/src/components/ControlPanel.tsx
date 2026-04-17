@@ -170,7 +170,24 @@ export default function ControlPanel({
             padding: '24px',
             textAlign: 'center',
           }}>
-            <div style={{ fontSize: '28px', marginBottom: '12px' }}>&#9888;&#65039;</div>
+            {/* 1-stroke caution triangle — VS16 emoji 대체 */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', color: 'var(--accent-red)' }}>
+              <svg
+                viewBox="0 0 28 28"
+                width="28"
+                height="28"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M14 4 L25 23 L3 23 Z" />
+                <line x1="14" y1="11" x2="14" y2="17" />
+                <circle cx="14" cy="20" r="0.9" fill="currentColor" stroke="none" />
+              </svg>
+            </div>
             <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
               시뮬레이션을 리셋할까요?
             </h3>

@@ -22,14 +22,20 @@ function AgentLogImpl({ log }: Props) {
 
   return (
     <div className="card p-5">
-      <h3 style={{
-        fontSize: '18px',
-        fontWeight: 700,
-        color: 'var(--text-primary)',
-        marginBottom: '16px',
-      }}>
-        Agent Log &mdash; Day {log.day}
-      </h3>
+      {/* Section-heading 컨벤션으로 통합 — 모듈 라벨 (11px upper) + 날짜를 mono 보조 요소로 */}
+      <div className="flex items-baseline gap-3" style={{ marginBottom: '16px' }}>
+        <h3 className="section-heading">
+          Agent Log
+        </h3>
+        <span style={{
+          fontSize: '11px',
+          fontFamily: 'var(--font-mono)',
+          fontVariantNumeric: 'tabular-nums',
+          color: 'var(--text-quaternary)',
+        }}>
+          Day {log.day}
+        </span>
+      </div>
 
       {/* Parsing/format warnings */}
       {log.warnings && log.warnings.length > 0 && (
@@ -41,7 +47,7 @@ function AgentLogImpl({ log }: Props) {
           borderRadius: 'var(--radius-md)',
         }}>
           <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--surface-warning-text)', marginBottom: '6px' }}>
-            ⚠️ 출력 파싱 경고 ({log.warnings.length})
+            <span style={{ marginRight: '4px' }}>※</span>출력 파싱 경고 ({log.warnings.length})
           </div>
           <ul style={{ fontSize: '12px', color: 'var(--surface-warning-text-strong)', lineHeight: 1.55, paddingLeft: '16px', margin: 0 }}>
             {log.warnings.map((w, i) => (

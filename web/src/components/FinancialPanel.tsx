@@ -14,16 +14,23 @@ const NET_WORTH_COLOR = 'var(--accent-green)';
 const CASH_COLOR = 'var(--accent-blue)';
 const REVENUE_COLOR = 'var(--accent-pink)';
 
-// 차트 여백·tooltip 스타일 정적 상수
+// 차트 여백·tooltip·tick 스타일 정적 상수 — Hanken/JetBrains 시스템에 정합
 const CHART_MARGIN = { top: 4, right: 8, bottom: 0, left: -28 };
 const TOOLTIP_STYLE = {
   backgroundColor: 'var(--bg-card)',
   border: '1px solid var(--border-default)',
   borderRadius: '8px',
   fontSize: '11px',
+  fontFamily: 'var(--font-mono)',
   color: 'var(--text-primary)',
   boxShadow: 'var(--shadow-md)',
 };
+// SVG <text>용 — CSS variable은 SVG 속성에 안 먹혀 computed 값 사용. fontFamily는 var 가능(상속).
+const TICK_STYLE = {
+  fontSize: 10,
+  fontFamily: 'var(--font-mono)',
+  fill: 'var(--text-tertiary)',
+} as const;
 
 function FinancialPanelImpl({ state, logs }: Props) {
   // logs 레퍼런스 안정 시 재계산 생략
@@ -67,13 +74,13 @@ function FinancialPanelImpl({ state, logs }: Props) {
                 <XAxis
                   dataKey="day"
                   stroke="var(--text-quaternary)"
-                  tick={{ fontSize: 9, fill: 'var(--text-tertiary)' }}
+                  tick={TICK_STYLE}
                   tickLine={false}
                   axisLine={false}
                 />
                 <YAxis
                   stroke="var(--text-quaternary)"
-                  tick={{ fontSize: 9, fill: 'var(--text-tertiary)' }}
+                  tick={TICK_STYLE}
                   tickLine={false}
                   axisLine={false}
                   width={40}
