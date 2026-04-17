@@ -7,6 +7,43 @@ export type Season = 'spring' | 'summer' | 'fall' | 'winter';
 export type DayOfWeek = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
 export type SlotSize = 'small' | 'large';
 
+// --- Difficulty ---
+export type Difficulty = 'easy' | 'normal' | 'hard';
+
+export interface DifficultyConfig {
+  id: Difficulty;
+  label: string;
+  description: string;
+
+  // Economy 상수
+  startingBalance: number;
+  dailyFee: number;
+  bankruptcyThreshold: number;
+  machineRentalFee: number;
+
+  // 이벤트 빈도 (일 단위)
+  publicEventPeriod: number;
+  hiddenEventPeriod: number;
+
+  // 이벤트 톤 — LLM 프롬프트에 bias 주입
+  eventTone: 'positive' | 'neutral' | 'negative';
+
+  // 이벤트 효과 clamp 범위
+  effectClamps: {
+    demandMin: number;
+    demandMax: number;
+    trafficMin: number;
+    trafficMax: number;
+    priceShiftMin: number;
+    priceShiftMax: number;
+    deliveryDelayMax: number;
+  };
+
+  // Crisis tier — 극단 부정 이벤트
+  crisisChance: number;        // 0~1, 이벤트 생성 시 crisis일 확률
+  crisisDurationBonus: number; // crisis 이벤트의 expiresDay 추가 일수
+}
+
 // --- Product ---
 export interface Product {
   name: string;
@@ -165,6 +202,7 @@ export interface SimulationState {
   consecutiveNegativeDays: number;
   bankrupt: boolean;
   maxDays: number;         // 30 or custom
+  difficulty: Difficulty;  // 시뮬레이션 생성 시 선택된 난이도 (이후 불변)
   // 에이전트 대화 히스토리 (컨텍스트 유지)
   conversationHistory: ConversationMessage[];
 }
@@ -205,6 +243,7 @@ export interface SimulationConfig {
 export interface StartRequest {
   maxDays?: number;
   startDate?: string;
+  difficulty?: Difficulty;
 }
 
 export interface StartResponse {

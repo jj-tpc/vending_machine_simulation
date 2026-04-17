@@ -4,7 +4,9 @@ import {
   TurnResponse,
   MachineSlot,
   LlmVendor,
+  Difficulty,
 } from './types';
+import { DEFAULT_DIFFICULTY, getDifficultyConfig } from './difficulty';
 import { generateMarketCondition } from './market';
 import { createEmptyMachine } from './vending-machine';
 import { processDeliveries, initSupplierStates, processRandomEvents, generateSuppliers } from './suppliers';
@@ -12,18 +14,18 @@ import { simulateCustomerPurchases } from './customers';
 import { generateMorningReport, runAgentTurn } from './agent';
 import { updateMarketEvents, aggregateEventEffects } from './market-events';
 
-const DAILY_FEE = 2;
-const STARTING_BALANCE = 500;
-const BANKRUPTCY_THRESHOLD = 5;
-const MACHINE_RENTAL_FEE = 400;
-
-// 초기 상태 생성
-export function createInitialState(maxDays: number = 30, startDate?: string): SimulationState {
+// 초기 상태 생성 — 난이도 설정에 따라 시작 자본 결정, state에 difficulty 저장
+export function createInitialState(
+  maxDays: number = 30,
+  startDate?: string,
+  difficulty: Difficulty = DEFAULT_DIFFICULTY,
+): SimulationState {
+  const config = getDifficultyConfig(difficulty);
   const suppliers = generateSuppliers();
   return {
     day: 0,
     startDate: startDate || new Date().toISOString().split('T')[0],
-    balance: STARTING_BALANCE,
+    balance: config.startingBalance,
     machineBalance: 0,
     machine: createEmptyMachine(),
     storage: [],
@@ -36,18 +38,20 @@ export function createInitialState(maxDays: number = 30, startDate?: string): Si
     consecutiveNegativeDays: 0,
     bankrupt: false,
     maxDays,
+    difficulty,
     conversationHistory: [],
   };
 }
 
-// 순자산 계산
+// 순자산 계산 — MACHINE_RENTAL_FEE는 상태에 저장된 난이도에서 참조
 function calculateNetWorth(state: SimulationState): number {
+  const config = getDifficultyConfig(state.difficulty);
   const cashTotal = state.balance + state.machineBalance;
   const storageValue = state.storage.reduce((sum, s) => sum + s.quantity * 0.75, 0);
   const machineValue = state.machine
     .filter((s): s is MachineSlot & { productName: string } => s.productName !== null && s.quantity > 0)
     .reduce((sum, s) => sum + s.quantity * 0.75, 0);
-  return cashTotal + storageValue + machineValue - MACHINE_RENTAL_FEE;
+  return cashTotal + storageValue + machineValue - config.machineRentalFee;
 }
 
 export type ProgressCallback = (step: string, status: 'start' | 'done', doneLabel?: string) => void;
@@ -65,6 +69,7 @@ export async function executeTurn(
   const warnings: string[] = [];
   let currentState = { ...state, day: state.day + 1 };
   const { suppliers } = currentState;
+  const difficultyConfig = getDifficultyConfig(currentState.difficulty);
 
   // 1. 배송 도착 처리
   emit('배송 도착 확인하는 중...', 'start');
@@ -105,9 +110,9 @@ export async function executeTurn(
   const recentMarkets = currentState.history.slice(-5).map(h => h.market);
   const market = await generateMarketCondition(currentState.day, currentState.startDate, recentMarkets, vendor, apiKey, warnings);
 
-  // 4. 시장 이벤트 갱신 (날짜, 계절, 날씨 정보 전달)
+  // 4. 시장 이벤트 갱신 (날짜, 계절, 날씨, 난이도 config 전달)
   const updatedMarketEvents = await updateMarketEvents(
-    currentState.marketEvents, currentState.day, market.season, vendor, apiKey, market.date, market.weather, warnings
+    currentState.marketEvents, currentState.day, market.season, vendor, apiKey, market.date, market.weather, warnings, difficultyConfig
   );
 
   currentState.marketEvents = updatedMarketEvents;
@@ -131,17 +136,17 @@ export async function executeTurn(
 
   emit('고객 구매 시뮬레이션하는 중...', 'done', '고객 구매 시뮬레이션 완료');
 
-  // 8. 일일 운영비 차감
+  // 8. 일일 운영비 차감 (난이도별)
   emit('재무 정산하는 중...', 'start');
-  currentState.balance -= DAILY_FEE;
+  currentState.balance -= difficultyConfig.dailyFee;
 
-  // 9. 파산 체크
+  // 9. 파산 체크 (난이도별 임계)
   if (currentState.balance < 0) {
     currentState.consecutiveNegativeDays++;
   } else {
     currentState.consecutiveNegativeDays = 0;
   }
-  if (currentState.consecutiveNegativeDays >= BANKRUPTCY_THRESHOLD) {
+  if (currentState.consecutiveNegativeDays >= difficultyConfig.bankruptcyThreshold) {
     currentState.bankrupt = true;
   }
 
@@ -163,10 +168,10 @@ export async function executeTurn(
 
   currentState.history = [...currentState.history, turnLog];
 
-  // 시뮬레이션 종료 시 자판기 대여료 $400 차감
+  // 시뮬레이션 종료 시 자판기 대여료 차감 (난이도별)
   const finished = currentState.bankrupt || currentState.day >= currentState.maxDays;
   if (finished && !currentState.bankrupt) {
-    currentState.balance -= MACHINE_RENTAL_FEE;
+    currentState.balance -= difficultyConfig.machineRentalFee;
   }
 
   const finishReason = currentState.bankrupt

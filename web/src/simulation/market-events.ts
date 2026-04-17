@@ -1,6 +1,19 @@
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import { createHelperModel } from './llm';
-import { MarketEvent, MarketEventEffects, LlmVendor } from './types';
+import { MarketEvent, MarketEventEffects, LlmVendor, DifficultyConfig } from './types';
+import { DIFFICULTY_CONFIGS } from './difficulty';
+
+// 난이도 톤에 따른 LLM 프롬프트 가이드
+const TONE_GUIDE: Record<DifficultyConfig['eventTone'], string> = {
+  positive: '긍정적·기회 중심 뉴스를 우선 생성하세요. 수요 증가, 호재, 인기 상승 등 사업에 유리한 소재.',
+  neutral: '긍정·부정·중립을 고르게 섞어 현실적으로 생성하세요.',
+  negative: '사업 환경에 압박을 주는 부정적·도전적 소재를 우선 생성하세요. 원자재 인상, 물류 차질, 수요 부진, 경쟁 심화, 경기 침체 등.',
+};
+
+// Crisis 이벤트 프롬프트 — 극단 부정, 장기간 영향
+const CRISIS_PROMPT = `이번에는 CRISIS(위기) 등급 이벤트입니다. 자판기 사업에 **심각한 타격**을 주는 급성 위기 상황을 생성하세요.
+예: 대규모 정전, 물류 파업 장기화, 지역 경기 급냉, 주요 공급망 붕괴, 대형 공사 장기 봉쇄.
+수요·유동인구는 현저히 감소(0.3~0.6), 또는 도매가·배송 지연이 크게 상승. 본문에서 위기임을 명시.`;
 
 // ============================================================
 // 공개 이벤트 (7일마다) - UI에 신문처럼 표시
@@ -14,7 +27,9 @@ async function generatePublicEvent(
   apiKey?: string,
   dateStr?: string,
   weather?: string,
-  warnings?: string[]
+  warnings?: string[],
+  config: DifficultyConfig = DIFFICULTY_CONFIGS.normal,
+  isCrisis: boolean = false,
 ): Promise<MarketEvent> {
   const recentHeadlines = recentEvents
     .filter(e => e.visible)
@@ -22,11 +37,17 @@ async function generatePublicEvent(
     .map(e => e.headline)
     .join(', ');
 
+  const toneGuide = TONE_GUIDE[config.eventTone];
+  const crisisGuide = isCrisis ? `\n\n${CRISIS_PROMPT}` : '';
+
   try {
     const llm = createHelperModel(vendor, apiKey!, 400);
     const response = await llm.invoke([
       new SystemMessage(`당신은 자판기 사업과 관련된 시장 뉴스를 생성하는 시뮬레이터입니다.
 현실적이고 자판기 운영에 영향을 줄 수 있는 뉴스를 만드세요.
+
+## 난이도 톤 가이드
+${toneGuide}${crisisGuide}
 
 예시 주제: 음료 트렌드 변화, 원자재 가격 변동, 소비자 선호도 변화, 날씨/계절 이벤트,
 대형 행사(축제/시험기간), 경기 변동, 건강 트렌드, 신제품 출시, 물류 파업 등
@@ -63,24 +84,24 @@ effects 범위:
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       warnings?.push(`공개 이벤트 LLM 응답에서 JSON을 찾지 못해 폴백 사용 (원본: "${text.slice(0, 120)}")`);
-      return fallbackPublicEvent(day);
+      return fallbackPublicEvent(day, config, isCrisis);
     }
     try {
       const parsed = JSON.parse(jsonMatch[0]);
       return {
-        id: `PUB-${day}-${Math.random().toString(36).slice(2, 6)}`,
+        id: `PUB-${day}-${isCrisis ? 'CR-' : ''}${Math.random().toString(36).slice(2, 6)}`,
         day,
         headline: parsed.headline || '시장 동향',
         subheadline: parsed.subheadline || '',
         body: parsed.body || '',
         visible: true,
-        effects: clampEffects(parsed.effects || {}),
-        expiresDay: day + 7,
+        effects: clampEffects(parsed.effects || {}, config),
+        expiresDay: day + 7 + (isCrisis ? config.crisisDurationBonus : 0),
       };
     } catch (parseErr) {
       const msg = parseErr instanceof Error ? parseErr.message : String(parseErr);
       warnings?.push(`공개 이벤트 JSON 파싱 실패 → 폴백 사용 (${msg.slice(0, 80)})`);
-      return fallbackPublicEvent(day);
+      return fallbackPublicEvent(day, config, isCrisis);
     }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -88,7 +109,7 @@ effects 범위:
     warnings?.push(`공개 이벤트 LLM 호출 실패 → 폴백 사용 (${msg.slice(0, 100)})`);
   }
 
-  return fallbackPublicEvent(day);
+  return fallbackPublicEvent(day, config, isCrisis);
 }
 
 // ============================================================
@@ -103,7 +124,9 @@ async function generateHiddenEvent(
   apiKey?: string,
   dateStr?: string,
   weather?: string,
-  warnings?: string[]
+  warnings?: string[],
+  config: DifficultyConfig = DIFFICULTY_CONFIGS.normal,
+  isCrisis: boolean = false,
 ): Promise<MarketEvent> {
   const recentHidden = recentEvents
     .filter(e => !e.visible)
@@ -111,12 +134,18 @@ async function generateHiddenEvent(
     .map(e => e.headline)
     .join(', ');
 
+  const toneGuide = TONE_GUIDE[config.eventTone];
+  const crisisGuide = isCrisis ? `\n\n${CRISIS_PROMPT}` : '';
+
   try {
     const llm = createHelperModel(vendor, apiKey!, 400);
     const response = await llm.invoke([
       new SystemMessage(`당신은 자판기 사업 환경에 영향을 미치는 숨겨진 시장 변동을 생성합니다.
 이것들은 에이전트에게 직접 보이지 않지만 판매량, 배송, 가격에 영향을 줍니다.
 에이전트는 결과를 관찰하면서 간접적으로 파악해야 합니다.
+
+## 난이도 톤 가이드
+${toneGuide}${crisisGuide}
 
 예시: 근처 공사로 유동인구 감소, SNS에서 특정 음료 바이럴,
 운송업체 내부 문제, 원자재 공급망 변동, 경쟁 자판기 설치/철거,
@@ -150,24 +179,24 @@ async function generateHiddenEvent(
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       warnings?.push(`숨겨진 이벤트 LLM 응답에서 JSON을 찾지 못해 폴백 사용 (원본: "${text.slice(0, 120)}")`);
-      return fallbackHiddenEvent(day);
+      return fallbackHiddenEvent(day, config, isCrisis);
     }
     try {
       const parsed = JSON.parse(jsonMatch[0]);
       return {
-        id: `HID-${day}-${Math.random().toString(36).slice(2, 6)}`,
+        id: `HID-${day}-${isCrisis ? 'CR-' : ''}${Math.random().toString(36).slice(2, 6)}`,
         day,
         headline: parsed.headline || '숨겨진 변동',
         subheadline: parsed.subheadline || '',
         body: parsed.body || '',
         visible: false,
-        effects: clampEffects(parsed.effects || {}),
-        expiresDay: day + 3,
+        effects: clampEffects(parsed.effects || {}, config),
+        expiresDay: day + 3 + (isCrisis ? config.crisisDurationBonus : 0),
       };
     } catch (parseErr) {
       const msg = parseErr instanceof Error ? parseErr.message : String(parseErr);
       warnings?.push(`숨겨진 이벤트 JSON 파싱 실패 → 폴백 사용 (${msg.slice(0, 80)})`);
-      return fallbackHiddenEvent(day);
+      return fallbackHiddenEvent(day, config, isCrisis);
     }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -175,33 +204,34 @@ async function generateHiddenEvent(
     warnings?.push(`숨겨진 이벤트 LLM 호출 실패 → 폴백 사용 (${msg.slice(0, 100)})`);
   }
 
-  return fallbackHiddenEvent(day);
+  return fallbackHiddenEvent(day, config, isCrisis);
 }
 
 // ============================================================
 // 효과 범위 제한
 // ============================================================
 
-function clampEffects(effects: MarketEventEffects): MarketEventEffects {
+function clampEffects(effects: MarketEventEffects, config: DifficultyConfig): MarketEventEffects {
   const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+  const c = config.effectClamps;
   const result: MarketEventEffects = {};
 
   if (effects.demandMultiplier) {
     result.demandMultiplier = {};
     for (const [k, v] of Object.entries(effects.demandMultiplier)) {
-      result.demandMultiplier[k] = clamp(v, 0.5, 2.0);
+      result.demandMultiplier[k] = clamp(v, c.demandMin, c.demandMax);
     }
   }
   if (effects.customerTraffic !== undefined) {
-    result.customerTraffic = clamp(effects.customerTraffic, 0.5, 1.5);
+    result.customerTraffic = clamp(effects.customerTraffic, c.trafficMin, c.trafficMax);
   }
   if (effects.deliveryDelayGlobal !== undefined) {
-    result.deliveryDelayGlobal = clamp(Math.round(effects.deliveryDelayGlobal), 0, 3);
+    result.deliveryDelayGlobal = clamp(Math.round(effects.deliveryDelayGlobal), 0, c.deliveryDelayMax);
   }
   if (effects.priceShift) {
     result.priceShift = {};
     for (const [k, v] of Object.entries(effects.priceShift)) {
-      result.priceShift[k] = clamp(v, -0.2, 0.3);
+      result.priceShift[k] = clamp(v, c.priceShiftMin, c.priceShiftMax);
     }
   }
 
@@ -212,24 +242,52 @@ function clampEffects(effects: MarketEventEffects): MarketEventEffects {
 // 폴백 이벤트
 // ============================================================
 
-function fallbackPublicEvent(day: number): MarketEvent {
-  const events = [
+function fallbackPublicEvent(day: number, config: DifficultyConfig, isCrisis: boolean = false): MarketEvent {
+  // Crisis 전용 harsh fallback 풀 — 심각한 부정 사건 (LLM 실패 시에도 위기 전달)
+  type PoolItem = { headline: string; subheadline: string; body: string; effects: MarketEventEffects };
+  const crisisPool: PoolItem[] = [
+    { headline: '지역 경기 급냉', subheadline: '소비 심리 급락', body: '지역 경기 침체로 전반적인 소비가 줄어들었다.', effects: { demandMultiplier: { all: 0.55 }, customerTraffic: 0.55 } },
+    { headline: '물류 파업 장기화', subheadline: '공급망 전면 차질', body: '운송업체 파업 장기화로 전 업체 배송에 큰 차질이 발생했다.', effects: { deliveryDelayGlobal: 3, priceShift: { beverage: 0.25, snack: 0.2 } } },
+    { headline: '원자재 급등', subheadline: '도매가 일제 상승', body: '국제 원자재 가격 급등으로 모든 카테고리 도매가가 크게 올랐다.', effects: { priceShift: { beverage: 0.3, snack: 0.25, other: 0.25 } } },
+  ];
+  const neutralPool: PoolItem[] = [
     { headline: '음료 수요 증가세', subheadline: '여름 시즌 음료 판매량 상승', body: '기온 상승과 함께 음료 소비가 늘어나고 있다.', effects: { demandMultiplier: { beverage: 1.2 } } },
     { headline: '스낵 시장 안정', subheadline: '전반적으로 큰 변동 없는 상황', body: '스낵 시장은 안정적인 수요를 유지하고 있다.', effects: {} },
     { headline: '물류비 상승', subheadline: '운송 비용 인상 여파', body: '유류비 인상으로 배송이 지연되고 도매가가 소폭 상승했다.', effects: { deliveryDelayGlobal: 1, priceShift: { beverage: 0.05, snack: 0.05 } } },
   ];
-  const e = events[day % events.length];
-  return { id: `PUB-${day}-fb`, day, ...e, visible: true, expiresDay: day + 7 };
+  const pool = isCrisis ? crisisPool : neutralPool;
+  const e = pool[day % pool.length];
+  return {
+    id: `PUB-${day}-${isCrisis ? 'CR-' : ''}fb`,
+    day,
+    ...e,
+    effects: clampEffects(e.effects, config),
+    visible: true,
+    expiresDay: day + 7 + (isCrisis ? config.crisisDurationBonus : 0),
+  };
 }
 
-function fallbackHiddenEvent(day: number): MarketEvent {
-  const events = [
+function fallbackHiddenEvent(day: number, config: DifficultyConfig, isCrisis: boolean = false): MarketEvent {
+  type PoolItem = { headline: string; subheadline: string; body: string; effects: MarketEventEffects };
+  const crisisPool: PoolItem[] = [
+    { headline: '대형 공사 장기 봉쇄', subheadline: '주변 유동인구 급감', body: '인근 대형 공사로 유동인구가 장기간 급감했다.', effects: { customerTraffic: 0.5 } },
+    { headline: '공급망 내부 파행', subheadline: '주요 업체 배송 차질', body: '운송업체 내부 문제로 배송이 지속적으로 지연되고 있다.', effects: { deliveryDelayGlobal: 2 } },
+  ];
+  const neutralPool: PoolItem[] = [
     { headline: '근처 행사 개최', subheadline: '유동인구 소폭 증가', body: '인근 지역 행사로 유동인구가 증가했다.', effects: { customerTraffic: 1.15 } },
     { headline: 'SNS 바이럴', subheadline: '특정 음료 인기 급상승', body: 'SNS에서 에너지 드링크가 화제가 되면서 수요가 늘었다.', effects: { demandMultiplier: { beverage: 1.3 } } },
     { headline: '경쟁 자판기 등장', subheadline: '근처에 새 자판기 설치', body: '근처에 경쟁 자판기가 설치되어 유동인구가 분산되었다.', effects: { customerTraffic: 0.85 } },
   ];
-  const e = events[day % events.length];
-  return { id: `HID-${day}-fb`, day, ...e, visible: false, expiresDay: day + 3 };
+  const pool = isCrisis ? crisisPool : neutralPool;
+  const e = pool[day % pool.length];
+  return {
+    id: `HID-${day}-${isCrisis ? 'CR-' : ''}fb`,
+    day,
+    ...e,
+    effects: clampEffects(e.effects, config),
+    visible: false,
+    expiresDay: day + 3 + (isCrisis ? config.crisisDurationBonus : 0),
+  };
 }
 
 // ============================================================
@@ -244,26 +302,32 @@ export async function updateMarketEvents(
   apiKey?: string,
   dateStr?: string,
   weather?: string,
-  warnings?: string[]
+  warnings?: string[],
+  config: DifficultyConfig = DIFFICULTY_CONFIGS.normal,
 ): Promise<MarketEvent[]> {
   // 만료된 이벤트 제거
   const events = currentEvents.filter(e => e.expiresDay > day);
 
-  const needPublic = day === 1 || day % 7 === 1;
-  const needHidden = day === 1 || day % 3 === 1;
+  // 난이도별 주기 — hard에서는 5일/2일, easy에서는 10일/4일
+  const needPublic = day === 1 || day % config.publicEventPeriod === 1;
+  const needHidden = day === 1 || day % config.hiddenEventPeriod === 1;
 
   if (!needPublic && !needHidden) return events;
 
-  // 공개 이벤트: 1개 60%, 2개 35%, 3개 5%
+  // 공개 이벤트: 1개 60%, 2개 35%, 3개 5% — crisis는 각 이벤트마다 독립 roll
   const promises: Promise<MarketEvent>[] = [];
   if (needPublic) {
     const roll = Math.random();
     const publicCount = roll < 0.60 ? 1 : roll < 0.95 ? 2 : 3;
     for (let i = 0; i < publicCount; i++) {
-      promises.push(generatePublicEvent(day, season, events, vendor, apiKey, dateStr, weather, warnings));
+      const isCrisis = Math.random() < config.crisisChance;
+      promises.push(generatePublicEvent(day, season, events, vendor, apiKey, dateStr, weather, warnings, config, isCrisis));
     }
   }
-  if (needHidden) promises.push(generateHiddenEvent(day, season, events, vendor, apiKey, dateStr, weather, warnings));
+  if (needHidden) {
+    const isCrisis = Math.random() < config.crisisChance;
+    promises.push(generateHiddenEvent(day, season, events, vendor, apiKey, dateStr, weather, warnings, config, isCrisis));
+  }
 
   const newEvents = await Promise.all(promises);
   return [...events, ...newEvents];
