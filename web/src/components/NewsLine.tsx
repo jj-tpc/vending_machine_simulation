@@ -22,20 +22,6 @@ const SCRUBBER_CURSOR_WIDTH = 2;
 // Speed: pixels per second (lower = slower)
 const TICKER_SPEED = 20;
 
-// prefers-reduced-motion이면 RAF loop 자체를 가동하지 않는다.
-// globals.css의 transition/animation-duration 제한만으로는 JS RAF을 못 막기 때문.
-function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReduced(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-  return reduced;
-}
-
 function NewsLineImpl({ state, log, tailDay, cursorDay, onSeek }: Props) {
   const market = log?.market;
   const visibleEvents = state.marketEvents.filter(e => e.visible && e.expiresDay > state.day);
@@ -44,8 +30,9 @@ function NewsLineImpl({ state, log, tailDay, cursorDay, onSeek }: Props) {
   const tickerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number | null>(null);
   const posRef = useRef(0);
-  const prefersReducedMotion = usePrefersReducedMotion();
-  const tickerActive = visibleEvents.length > 0 && !prefersReducedMotion;
+  // RTL 스크롤 ticker는 이 제품의 의도된 핵심 디자인 요소 —
+  // prefers-reduced-motion 상태에서도 유지 (Windows 11 등에서 시스템 애니메이션 off 시 의도치 않게 정지되던 버그 수정).
+  const tickerActive = visibleEvents.length > 0;
 
   const startAnimation = useCallback(() => {
     let lastTime: number | null = null;
