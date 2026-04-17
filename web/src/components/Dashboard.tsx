@@ -237,7 +237,7 @@ export default function Dashboard() {
                         marginLeft: '6px',
                         padding: '1px 6px',
                         background: 'var(--accent-primary)',
-                        color: 'white',
+                        color: 'var(--text-on-accent)',
                         fontSize: '9px',
                         borderRadius: '6px',
                         fontWeight: 700,
@@ -381,7 +381,7 @@ export default function Dashboard() {
                 <div style={{
                   background: 'var(--accent-primary)',
                   padding: '16px 20px',
-                  color: 'white',
+                  color: 'var(--text-on-accent)',
                 }}>
                   <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '4px' }}>
                     게임 규칙

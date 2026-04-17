@@ -116,7 +116,7 @@ export default function EmailPanel({ state, selectedEmailId, onSelectEmail, onSw
               marginLeft: '4px',
               padding: '0 5px',
               background: 'var(--accent-primary)',
-              color: 'white',
+              color: 'var(--text-on-accent)',
               fontSize: '9px',
               borderRadius: '6px',
               fontWeight: 700,
@@ -193,7 +193,7 @@ function EmailRow({ email, isSelected, onClick }: { email: Email; isSelected: bo
         border: 'none',
         cursor: 'pointer',
         background: isSelected ? 'var(--accent-primary)' : 'transparent',
-        color: isSelected ? 'white' : 'var(--text-primary)',
+        color: isSelected ? 'var(--text-on-accent)' : 'var(--text-primary)',
         display: 'block',
       }}
       onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--fill-light)'; }}
@@ -204,7 +204,7 @@ function EmailRow({ email, isSelected, onClick }: { email: Email; isSelected: bo
           <span className="badge" style={{
             fontSize: '9px',
             background: isSelected ? 'rgba(255,255,255,0.2)' : isSent ? 'var(--surface-success)' : 'var(--surface-info)',
-            color: isSelected ? 'white' : isSent ? 'var(--surface-success-text)' : 'var(--surface-info-text)',
+            color: isSelected ? 'var(--text-on-accent)' : isSent ? 'var(--surface-success-text)' : 'var(--surface-info-text)',
           }}>
             {isSent ? '발신' : '수신'}
           </span>
@@ -232,7 +232,7 @@ function EmailRow({ email, isSelected, onClick }: { email: Email; isSelected: bo
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
         fontWeight: isUnread ? 600 : 400,
-        color: isSelected ? 'white' : isUnread ? 'var(--text-primary)' : 'var(--text-secondary)',
+        color: isSelected ? 'var(--text-on-accent)' : isUnread ? 'var(--text-primary)' : 'var(--text-secondary)',
       }}>
         {email.subject}
       </div>

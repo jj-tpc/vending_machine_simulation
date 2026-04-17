@@ -191,7 +191,7 @@ export default function ControlPanel({
                 style={{
                   minWidth: '80px',
                   background: 'var(--accent-red)',
-                  color: 'white',
+                  color: 'var(--text-on-accent)',
                 }}
               >
                 리셋

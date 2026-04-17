@@ -3,20 +3,25 @@
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css");
 
 :root {
-  /* Warm Light Theme - Anthropic Console inspired */
+  /* Warm Light Theme - Anthropic Console inspired
+   * Neutrals tinted toward brand hue (terracotta, OKLCH hue ≈37°)
+   * — pure #FFFFFF / #1A1A1A는 브랜드 톤과 어긋나 subconscious cohesion을 깨뜨림 */
   --bg-primary: #FAF7F2;
   --bg-secondary: #F0EBE3;
   --bg-sidebar: #F0EBE3;
-  --bg-card: #FFFFFF;
-  --bg-card-hover: #FAFAF8;
-  --bg-input: #FFFFFF;
-  --bg-elevated: #FFFFFF;
+  --bg-card: #FEFDFB;         /* oklch(0.995 0.003 60) — subtle cream tilt */
+  --bg-card-hover: #FBF9F5;   /* 좀 더 따뜻한 호버 */
+  --bg-input: #FEFDFB;
+  --bg-elevated: #FEFDFB;
 
   /* Text */
-  --text-primary: #1A1A1A;
+  --text-primary: #1B1815;    /* oklch(0.217 0.005 37) — warm near-black */
   --text-secondary: #6B6560;
   --text-tertiary: #9B9590;
   --text-quaternary: #C0B8B0;
+
+  /* Accent 위 텍스트 — pure white 대신 subtle warm cream */
+  --text-on-accent: #FFFBF5;
 
   /* Accent Colors */
   --accent-primary: #D4714E;
@@ -89,7 +94,7 @@
   --transition-default: 200ms ease;
 
   --background: #FAF7F2;
-  --foreground: #1A1A1A;
+  --foreground: #1B1815;
 }
 
 @theme inline {
@@ -175,7 +180,7 @@ body {
   color: var(--bg-primary);
 }
 .btn-primary:hover {
-  background: #333;
+  background: #3D3531;  /* warm near-dark, 중립 #333 회피 */
 }
 .btn-primary:disabled {
   background: var(--text-quaternary);
@@ -194,7 +199,7 @@ body {
 
 .btn-accent {
   background: var(--accent-primary);
-  color: white;
+  color: var(--text-on-accent);
 }
 .btn-accent:hover {
   opacity: 0.9;
