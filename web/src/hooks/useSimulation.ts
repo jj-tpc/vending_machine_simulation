@@ -27,7 +27,7 @@ const DEFAULT_MODELS: Record<LlmVendor, ModelInfo[]> = {
   gemini: [
     { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro (preview)', createdAt: '' },
     { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash (preview)', createdAt: '' },
-    { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite', createdAt: '' },
+    { id: 'gemini-3.1-flash-lite-preview', name: 'Gemini 3.1 Flash Lite (preview)', createdAt: '' },
     { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', createdAt: '' },
     { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', createdAt: '' },
     { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', createdAt: '' },
@@ -38,7 +38,7 @@ const DEFAULT_MODELS: Record<LlmVendor, ModelInfo[]> = {
 const DEFAULT_MODEL: Record<LlmVendor, string> = {
   anthropic: 'claude-sonnet-4-6',
   openai: 'gpt-5.4-mini',
-  gemini: 'gemini-3.1-flash-lite',
+  gemini: 'gemini-3.1-flash-lite-preview',
 };
 
 export interface LoadingStep {
