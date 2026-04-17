@@ -10,6 +10,7 @@ import NewsLine from './NewsLine';
 import EmailPanel from './EmailPanel';
 import EmailViewer from './EmailViewer';
 import SettingsPanel from './SettingsPanel';
+import TurnSummary from './TurnSummary';
 
 export default function Dashboard() {
   const {
@@ -168,10 +169,18 @@ export default function Dashboard() {
 
       {state ? (
         <div className="flex flex-col flex-1 overflow-hidden">
-          {/* News Line */}
+          {/* News Line — 시장 컨텍스트 */}
           <NewsLine state={state} log={currentLog} />
 
-          {/* 3-column layout */}
+          {/* Turn Summary — 이번 턴의 주인공 정보 (delta 중심) */}
+          <TurnSummary
+            log={currentLog}
+            allLogs={allLogs}
+            finished={finished}
+            finishReason={finishReason}
+          />
+
+          {/* 3-column layout — 참조 레일 2개 + 센터 drill-down */}
           <div className="flex flex-1 overflow-hidden">
             {/* Left: Email */}
             <div className="sidebar flex-shrink-0 overflow-y-auto p-3" style={{ width: '260px' }}>
