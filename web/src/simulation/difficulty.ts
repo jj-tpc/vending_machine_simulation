@@ -25,6 +25,11 @@ export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {
     },
     crisisChance: 0,
     crisisDurationBonus: 0,
+    instantEffectClamps: {
+      stockLossPercentageMax: 0,  // 비활성
+      stockLossFixedMax: 0,
+      oneTimeFeeMax: 0,
+    },
   },
 
   normal: {
@@ -46,6 +51,11 @@ export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {
     },
     crisisChance: 0.05,
     crisisDurationBonus: 3,
+    instantEffectClamps: {
+      stockLossPercentageMax: 0.15,
+      stockLossFixedMax: 10,
+      oneTimeFeeMax: 50,
+    },
   },
 
   hard: {
@@ -66,7 +76,12 @@ export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {
       deliveryDelayMax: 4,
     },
     crisisChance: 0.25,
-    crisisDurationBonus: 7,
+    crisisDurationBonus: 3, // 15/30일 게임에 맞춰 2주→3일로 재조정
+    instantEffectClamps: {
+      stockLossPercentageMax: 0.35,
+      stockLossFixedMax: 25,
+      oneTimeFeeMax: 150,
+    },
   },
 };
 

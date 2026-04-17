@@ -28,6 +28,11 @@ function getProductMeta(productName: string): ProductMeta {
   return PRODUCT_META[productName] || { referencePrice: 2.0, baseSales: 2, elasticity: 1.5, category: 'other' };
 }
 
+/** 외부에서 상품 카테고리만 필요한 경우 (예: 이벤트 instant effect 대상 필터링) */
+export function getProductCategory(productName: string): 'beverage' | 'snack' | 'other' {
+  return getProductMeta(productName).category;
+}
+
 // 상품 다양성 배수
 function getVarietyMultiplier(uniqueProducts: number): number {
   // 4-6종이 최적

@@ -10,10 +10,22 @@ const TONE_GUIDE: Record<DifficultyConfig['eventTone'], string> = {
   negative: '사업 환경에 압박을 주는 부정적·도전적 소재를 우선 생성하세요. 원자재 인상, 물류 차질, 수요 부진, 경쟁 심화, 경기 침체 등.',
 };
 
-// Crisis 이벤트 프롬프트 — 극단 부정, 장기간 영향
+// Crisis 이벤트 프롬프트 — 극단 부정, 즉시 효과 가능
 const CRISIS_PROMPT = `이번에는 CRISIS(위기) 등급 이벤트입니다. 자판기 사업에 **심각한 타격**을 주는 급성 위기 상황을 생성하세요.
-예: 대규모 정전, 물류 파업 장기화, 지역 경기 급냉, 주요 공급망 붕괴, 대형 공사 장기 봉쇄.
-수요·유동인구는 현저히 감소(0.3~0.6), 또는 도매가·배송 지연이 크게 상승. 본문에서 위기임을 명시.`;
+예: 대규모 정전, 물류 파업 장기화, 지역 경기 급냉, 주요 공급망 붕괴, 대형 공사 장기 봉쇄, 절도 사건, 자판기 파손.
+수요·유동인구는 현저히 감소(0.3~0.6), 또는 도매가·배송 지연이 크게 상승. 본문에서 위기임을 명시.
+
+## 즉시 효과(선택) — instantEffects
+사건의 성격에 맞을 때 JSON에 instantEffects를 함께 출력할 수 있습니다. 이벤트 활성화 시점에 1회만 적용됨:
+- stockLoss: 재고 손실 (절도·변질·화재·파손)
+  형식: { "target": "storage" | "machine" | "both", "categoryFilter": "beverage" | "snack" | "other" | "all", "percentage": 0.1~0.35, "reason": "사유" }
+  또는 fixedUnits 사용: { ..., "fixedUnits": 5~25, "reason": "..." }
+- oneTimeFee: 즉시 비용 차감 (수리비·과태료·긴급검사)
+  형식: { "amount": 20~150, "reason": "사유" }
+
+예시 (사건에 맞는 것 1개 선택):
+"instantEffects": { "stockLoss": { "target": "storage", "categoryFilter": "all", "percentage": 0.2, "reason": "창고 절도" } }
+"instantEffects": { "oneTimeFee": { "amount": 80, "reason": "자판기 파손 수리비" } }`;
 
 // ============================================================
 // 공개 이벤트 (7일마다) - UI에 신문처럼 표시
@@ -214,6 +226,7 @@ ${toneGuide}${crisisGuide}
 function clampEffects(effects: MarketEventEffects, config: DifficultyConfig): MarketEventEffects {
   const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
   const c = config.effectClamps;
+  const ic = config.instantEffectClamps;
   const result: MarketEventEffects = {};
 
   if (effects.demandMultiplier) {
@@ -235,6 +248,42 @@ function clampEffects(effects: MarketEventEffects, config: DifficultyConfig): Ma
     }
   }
 
+  // Instant effects — 난이도별 상한에 clamp. 0이면 해당 효과 자체를 제거(난이도가 비활성).
+  if (effects.instantEffects) {
+    const inst = effects.instantEffects;
+    const resultInst: NonNullable<MarketEventEffects['instantEffects']> = {};
+
+    if (inst.stockLoss && (ic.stockLossPercentageMax > 0 || ic.stockLossFixedMax > 0)) {
+      const sl = inst.stockLoss;
+      const clamped: NonNullable<typeof resultInst.stockLoss> = {
+        target: sl.target ?? 'storage',
+        categoryFilter: sl.categoryFilter ?? 'all',
+        reason: sl.reason,
+      };
+      if (sl.percentage !== undefined && ic.stockLossPercentageMax > 0) {
+        clamped.percentage = clamp(sl.percentage, 0, ic.stockLossPercentageMax);
+      }
+      if (sl.fixedUnits !== undefined && ic.stockLossFixedMax > 0) {
+        clamped.fixedUnits = clamp(Math.round(sl.fixedUnits), 0, ic.stockLossFixedMax);
+      }
+      // 최소 한쪽이라도 실제 값이 있을 때만 담음
+      if (clamped.percentage || clamped.fixedUnits) {
+        resultInst.stockLoss = clamped;
+      }
+    }
+
+    if (inst.oneTimeFee && ic.oneTimeFeeMax > 0) {
+      const amount = clamp(inst.oneTimeFee.amount, 0, ic.oneTimeFeeMax);
+      if (amount > 0) {
+        resultInst.oneTimeFee = { amount, reason: inst.oneTimeFee.reason };
+      }
+    }
+
+    if (resultInst.stockLoss || resultInst.oneTimeFee) {
+      result.instantEffects = resultInst;
+    }
+  }
+
   return result;
 }
 
@@ -244,11 +293,14 @@ function clampEffects(effects: MarketEventEffects, config: DifficultyConfig): Ma
 
 function fallbackPublicEvent(day: number, config: DifficultyConfig, isCrisis: boolean = false): MarketEvent {
   // Crisis 전용 harsh fallback 풀 — 심각한 부정 사건 (LLM 실패 시에도 위기 전달)
+  // instantEffects는 clampEffects에서 난이도별 상한으로 축소되므로 쉬움에선 자동 무효화
   type PoolItem = { headline: string; subheadline: string; body: string; effects: MarketEventEffects };
   const crisisPool: PoolItem[] = [
     { headline: '지역 경기 급냉', subheadline: '소비 심리 급락', body: '지역 경기 침체로 전반적인 소비가 줄어들었다.', effects: { demandMultiplier: { all: 0.55 }, customerTraffic: 0.55 } },
     { headline: '물류 파업 장기화', subheadline: '공급망 전면 차질', body: '운송업체 파업 장기화로 전 업체 배송에 큰 차질이 발생했다.', effects: { deliveryDelayGlobal: 3, priceShift: { beverage: 0.25, snack: 0.2 } } },
     { headline: '원자재 급등', subheadline: '도매가 일제 상승', body: '국제 원자재 가격 급등으로 모든 카테고리 도매가가 크게 올랐다.', effects: { priceShift: { beverage: 0.3, snack: 0.25, other: 0.25 } } },
+    { headline: '창고 절도 발생', subheadline: '보관 재고 일부 손실', body: '야간 침입으로 창고 보관 재고 일부가 도난당했다.', effects: { instantEffects: { stockLoss: { target: 'storage', categoryFilter: 'all', percentage: 0.2, reason: '창고 절도' } } } },
+    { headline: '자판기 파손 사건', subheadline: '수리비 발생', body: '기물 파손으로 자판기 수리비를 부담하게 되었다.', effects: { instantEffects: { oneTimeFee: { amount: 80, reason: '자판기 파손 수리비' } } } },
   ];
   const neutralPool: PoolItem[] = [
     { headline: '음료 수요 증가세', subheadline: '여름 시즌 음료 판매량 상승', body: '기온 상승과 함께 음료 소비가 늘어나고 있다.', effects: { demandMultiplier: { beverage: 1.2 } } },

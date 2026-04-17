@@ -13,6 +13,7 @@ import { processDeliveries, initSupplierStates, processRandomEvents, generateSup
 import { simulateCustomerPurchases } from './customers';
 import { generateMorningReport, runAgentTurn } from './agent';
 import { updateMarketEvents, aggregateEventEffects } from './market-events';
+import { applyInstantEffects } from './event-effects';
 
 // 초기 상태 생성 — 난이도 설정에 따라 시작 자본 결정, state에 difficulty 저장
 export function createInitialState(
@@ -102,11 +103,32 @@ export async function executeTurn(
   const market = await generateMarketCondition(currentState.day, currentState.startDate, recentMarkets, vendor, apiKey, warnings);
 
   // 4. 시장 이벤트 갱신 (날짜, 계절, 날씨, 난이도 config 전달)
+  const previousEventIds = new Set(currentState.marketEvents.map(e => e.id));
   const updatedMarketEvents = await updateMarketEvents(
     currentState.marketEvents, currentState.day, market.season, vendor, apiKey, market.date, market.weather, warnings, difficultyConfig
   );
-
   currentState.marketEvents = updatedMarketEvents;
+
+  // 4b. 새로 추가된 이벤트의 instantEffects(재고 손실·즉시 비용)를 state에 1회 적용
+  const newEvents = updatedMarketEvents.filter(e => !previousEventIds.has(e.id));
+  if (newEvents.length > 0) {
+    const applied = applyInstantEffects(currentState, newEvents);
+    currentState = applied.state;
+    // 알림 메일 — 에이전트가 오늘 턴부터 인지할 수 있도록 받은편지함에 추가
+    for (const notif of applied.notifications) {
+      currentState.emails = [...currentState.emails, {
+        id: `INST-${currentState.day}-${Math.random().toString(36).slice(2, 6)}`,
+        day: currentState.day,
+        from: 'system@vendingmachine.com',
+        to: 'agent@vendingmachine.com',
+        subject: notif.kind === 'oneTimeFee' ? `비용 발생 — ${notif.eventHeadline}` : `재고 손실 — ${notif.eventHeadline}`,
+        body: `${notif.eventHeadline}\n\n${notif.detail}`,
+        read: false,
+        type: 'received',
+      }];
+    }
+  }
+
   const eventEffects = aggregateEventEffects(currentState.marketEvents);
   emit('시장 상황 분석하는 중...', 'done', '시장 상황 분석 완료');
 

@@ -42,6 +42,13 @@ export interface DifficultyConfig {
   // Crisis tier — 극단 부정 이벤트
   crisisChance: number;        // 0~1, 이벤트 생성 시 crisis일 확률
   crisisDurationBonus: number; // crisis 이벤트의 expiresDay 추가 일수
+
+  // Instant effects clamp — 이벤트 1회성 효과 상한 (난이도별 gating)
+  instantEffectClamps: {
+    stockLossPercentageMax: number; // 0~1, 0이면 비활성화
+    stockLossFixedMax: number;      // 절대 수량 상한
+    oneTimeFeeMax: number;           // $ 상한, 0이면 비활성화
+  };
 }
 
 // --- Product ---
@@ -146,6 +153,26 @@ export interface MarketEventEffects {
   deliveryDelayGlobal?: number;               // 전체 배송 추가 지연일
   priceShift?: Record<string, number>;        // 카테고리별 도매가 변동률
   customerTraffic?: number;                   // 전체 고객 유동 배수 (0.5~2.0)
+  instantEffects?: InstantEffects;            // 이벤트 활성화 시점 1회성 효과 (crisis에서 주로)
+}
+
+/**
+ * Instant effects — 이벤트 활성화 시점에 state에 한 번 적용되는 즉시 효과.
+ * 지속 시간이 없으므로 게임 파탄 위험 없이 활용 가능.
+ * Phase 1: stockLoss (재고 손실) · oneTimeFee (일회성 비용).
+ */
+export interface InstantEffects {
+  stockLoss?: {
+    target: 'storage' | 'machine' | 'both';
+    categoryFilter?: 'beverage' | 'snack' | 'other' | 'all';
+    percentage?: number;   // 0~1, target 재고의 몇 %를 손실
+    fixedUnits?: number;   // 또는 절대 수량 (percentage와 하나만 사용)
+    reason?: string;       // UI/로그용 사유 (예: "절도", "변질")
+  };
+  oneTimeFee?: {
+    amount: number;  // 차감 금액($)
+    reason: string;  // 사유 (예: "자판기 수리비", "정기검사 과태료")
+  };
 }
 
 // --- Market Conditions ---
