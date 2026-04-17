@@ -58,51 +58,60 @@ export function simulateCustomerPurchases(
   // 시장 이벤트: 전체 고객 유동 배수
   const trafficMult = eventEffects?.customerTraffic ?? 1.0;
 
-  const salesItems: DailySales['items'] = [];
-  let totalRevenue = 0;
-  let totalUnits = 0;
+  // Duration constraints — 파손 슬롯·일일 판매 상한
+  const damagedSet = new Set(
+    (eventEffects?.durationConstraints?.damagedSlots ?? []).map(s => `${s.row},${s.col}`),
+  );
+  const dailySalesCap = eventEffects?.durationConstraints?.dailySalesCap;
 
-  const newMachine = machine.map(slot => {
-    if (!slot.productName || slot.quantity <= 0 || slot.price <= 0) return slot;
+  // Pass 1: 각 슬롯의 예상 판매량(반올림 전 raw)을 계산. 파손 슬롯은 0.
+  const slotPlans = machine.map(slot => {
+    if (!slot.productName || slot.quantity <= 0 || slot.price <= 0) {
+      return { slot, rawSales: 0 };
+    }
+    if (damagedSet.has(`${slot.row},${slot.col}`)) {
+      return { slot, rawSales: 0 };
+    }
 
     const meta = getProductMeta(slot.productName);
-
-    // 가격탄력성 효과
     const priceDiff = (slot.price - meta.referencePrice) / meta.referencePrice;
     const elasticityFactor = Math.max(0, 1 - priceDiff * meta.elasticity);
-
-    // 계절 & 날씨
     const seasonMult = getSeasonMultiplier(market.season, meta.category);
     const weatherMult = getWeatherMultiplier(market.weather, meta.category);
-
-    // 시장 이벤트: 카테고리별 수요 배수
     const eventDemandMult =
       (eventEffects?.demandMultiplier?.[meta.category] ?? 1.0) *
       (eventEffects?.demandMultiplier?.['all'] ?? 1.0);
 
-    // 최종 판매량
     let expectedSales = meta.baseSales * elasticityFactor * dayMult * seasonMult * weatherMult * varietyMult * trafficMult * eventDemandMult;
-
-    // 노이즈 (±30%)
     const noise = 1 + (Math.random() - 0.5) * 0.6;
     expectedSales *= noise;
+    return { slot, rawSales: Math.max(0, expectedSales) };
+  });
 
-    // 반올림, 0 이상, 재고 이하
-    const actualSales = Math.min(Math.max(0, Math.round(expectedSales)), slot.quantity);
+  // dailySalesCap이 설정돼 있고 raw 합계가 초과하면 비례 scale down
+  const rawTotal = slotPlans.reduce((s, p) => s + p.rawSales, 0);
+  let salesScale = 1;
+  if (dailySalesCap !== undefined && rawTotal > dailySalesCap && rawTotal > 0) {
+    salesScale = dailySalesCap / rawTotal;
+  }
+
+  // Pass 2: scale 적용 → 반올림 → 재고 상한 → 판매·수익 기록
+  const salesItems: DailySales['items'] = [];
+  let totalRevenue = 0;
+  let totalUnits = 0;
+
+  const newMachine = slotPlans.map(({ slot, rawSales }) => {
+    if (rawSales <= 0 || !slot.productName) return slot;
+    const scaled = rawSales * salesScale;
+    const actualSales = Math.min(Math.max(0, Math.round(scaled)), slot.quantity);
 
     if (actualSales > 0) {
       const revenue = actualSales * slot.price;
-      salesItems.push({
-        productName: slot.productName,
-        quantity: actualSales,
-        revenue,
-      });
+      salesItems.push({ productName: slot.productName, quantity: actualSales, revenue });
       totalRevenue += revenue;
       totalUnits += actualSales;
-
       return { ...slot, quantity: slot.quantity - actualSales };
     }
-
     return slot;
   });
 

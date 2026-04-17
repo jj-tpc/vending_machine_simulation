@@ -63,10 +63,17 @@ export async function executeTurn(
   const { suppliers } = currentState;
   const difficultyConfig = getDifficultyConfig(currentState.difficulty);
 
+  // 이전 턴까지 이어진 활성 이벤트의 집계 — 이번 턴 배송 단계가 참고
+  // (이번 턴에 새로 생성될 이벤트는 step 4에서 이후 집계에 합류)
+  const carryoverEffects = aggregateEventEffects(
+    currentState.marketEvents.filter(e => e.expiresDay > currentState.day),
+  );
+  const deliveryFreeze = carryoverEffects.durationConstraints?.deliveryFreeze ?? false;
+
   // 1. 배송 도착 처리
   emit('배송 도착 확인하는 중...', 'start');
   const deliveryResult = processDeliveries(
-    currentState.orders, currentState.storage, currentState.day, suppliers
+    currentState.orders, currentState.storage, currentState.day, suppliers, deliveryFreeze
   );
   currentState.orders = deliveryResult.orders;
   currentState.storage = deliveryResult.storage;

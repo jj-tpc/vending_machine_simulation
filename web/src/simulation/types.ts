@@ -49,6 +49,14 @@ export interface DifficultyConfig {
     stockLossFixedMax: number;      // 절대 수량 상한
     oneTimeFeeMax: number;           // $ 상한, 0이면 비활성화
   };
+
+  // Duration constraints clamp — 지속 제약 상한 (게임 파탄 방지)
+  durationConstraintClamps: {
+    maxActiveDays: number;            // 이벤트 최대 활성일수 (expiresDay hard cap), 0이면 비활성
+    deliveryFreezeEnabled: boolean;   // freeze 허용 여부
+    maxDamagedSlots: number;          // 동시 파손 슬롯 상한, 0이면 비활성
+    minDailySalesCap: number;         // 일일 판매 상한 값의 최소치 (너무 낮게 떨어지지 않도록)
+  };
 }
 
 // --- Product ---
@@ -154,6 +162,18 @@ export interface MarketEventEffects {
   priceShift?: Record<string, number>;        // 카테고리별 도매가 변동률
   customerTraffic?: number;                   // 전체 고객 유동 배수 (0.5~2.0)
   instantEffects?: InstantEffects;            // 이벤트 활성화 시점 1회성 효과 (crisis에서 주로)
+  durationConstraints?: DurationConstraints;  // 이벤트 활성 기간 내내 구조적 제약 (Phase 2)
+}
+
+/**
+ * Duration constraints — 이벤트가 활성인 기간 동안 매 턴 자동 적용되는 구조적 제약.
+ * Phase 2: deliveryFreeze · damagedSlots · dailySalesCap.
+ * 게임 파탄 방지: 구현체에서 이벤트 expiresDay를 event.day + 3 이하로 hard cap.
+ */
+export interface DurationConstraints {
+  deliveryFreeze?: boolean;                         // 활성 기간 모든 배송 중단
+  damagedSlots?: { row: number; col: number }[];    // 해당 슬롯 판매 불가 (수리 대기)
+  dailySalesCap?: number;                           // 일일 총 판매량 상한 (배급제 등)
 }
 
 /**
