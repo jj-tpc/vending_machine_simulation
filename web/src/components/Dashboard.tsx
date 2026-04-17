@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSimulation } from '@/hooks/useSimulation';
 import ControlPanel from './ControlPanel';
 import VendingMachineView from './VendingMachineView';
@@ -11,6 +11,7 @@ import EmailPanel from './EmailPanel';
 import EmailViewer from './EmailViewer';
 import SettingsPanel from './SettingsPanel';
 import TurnSummary from './TurnSummary';
+import FinishBanner from './FinishBanner';
 
 export default function Dashboard() {
   const {
@@ -36,19 +37,114 @@ export default function Dashboard() {
     nextTurn,
     skipTurns,
     reset,
+    clearError,
   } = useSimulation();
 
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [centerTab, setCenterTab] = useState<'agent' | 'email' | 'settings'>('agent');
 
-  // Random start date (between 2020-01-01 and 2025-12-31)
-  const [startDate, setStartDate] = useState(() => {
-    const start = new Date(2020, 0, 1).getTime();
-    const end = new Date(2025, 11, 31).getTime();
-    const randomDate = new Date(start + Math.random() * (end - start));
-    return randomDate.toISOString().split('T')[0];
-  });
+  // History cursor — null이면 Live tail. 숫자면 해당 일차의 로그를 표시(읽기 전용).
+  // 시뮬레이션 state(자판기·이메일·잔고)는 언제나 최신 유지.
+  const [cursorDay, setCursorDay] = useState<number | null>(null);
+  const tailDay = allLogs.length; // 진행된 최종 일차 (1-based; 0이면 로그 없음)
+  const isHistory = cursorDay !== null && cursorDay < tailDay;
+  // 로그 기반 패널이 볼 displayLog — 히스토리 모드면 allLogs[cursor-1], 아니면 현재
+  const displayLog = cursorDay !== null && cursorDay >= 1 && cursorDay <= tailDay
+    ? allLogs[cursorDay - 1]
+    : currentLog;
+  const returnToLive = useCallback(() => setCursorDay(null), []);
+
+  // "다음 일" 실행 시 cursor를 live로 복귀시킨 뒤 턴 진행 — 히스토리에 머문 채 새 턴이 묻히는 것 방지
+  const handleNextTurn = useCallback(() => {
+    setCursorDay(null);
+    nextTurn();
+  }, [nextTurn]);
+
+  // 리셋 시 cursor 초기화 (다음 사이클에서 history stale 값 방지)
+  const handleReset = useCallback(() => {
+    setSelectedEmailId(null);
+    setCursorDay(null);
+    reset();
+  }, [reset]);
+
+  // 키보드 단축키: ← → 탐색, Space 다음 일, Esc 최신으로. input/textarea 포커스·설정 모달 중엔 무시.
+  useEffect(() => {
+    if (!state) return;
+    const handleKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      // input/textarea/select는 타이핑 보호. button은 Space가 native click으로 처리되므로 스킵해 이중 발화 방지.
+      if (target && target.matches?.('input, textarea, select, button, [contenteditable="true"]')) return;
+      if (showSettings) return; // 설정 모달 열려있으면 Esc 충돌 피함
+      if (tailDay === 0) return;
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setCursorDay(prev => {
+          const curr = prev ?? tailDay;
+          return curr > 1 ? curr - 1 : curr;
+        });
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setCursorDay(prev => {
+          const curr = prev ?? tailDay;
+          if (curr + 1 >= tailDay) return null; // tail 도달 시 Live 복귀
+          return curr + 1;
+        });
+      } else if (e.key === 'Escape') {
+        if (cursorDay !== null) {
+          e.preventDefault();
+          setCursorDay(null);
+        }
+      } else if (e.key === ' ' || e.code === 'Space') {
+        if (!isLoading && !finished) {
+          e.preventDefault();
+          handleNextTurn();
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [state, tailDay, cursorDay, isLoading, finished, showSettings, handleNextTurn]);
+
+  // 센터 탭 스크롤 감지 → TurnSummary compact(28px) 토글. hysteresis 60/40으로 플리커 방지
+  const [isCompact, setIsCompact] = useState(false);
+  const centerScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = centerScrollRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const top = el.scrollTop;
+      setIsCompact(prev => {
+        if (!prev && top > 60) return true;
+        if (prev && top < 40) return false;
+        return prev;
+      });
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [state, centerTab]);
+  // 탭 전환 시 스크롤 리셋 → compact 복귀 (useLayoutEffect 없이 state 변경으로 간접 처리)
+  useEffect(() => { setIsCompact(false); }, [centerTab]);
+
+  // 종료 ceremony: finished가 false → true로 뒤집힐 때 일회성 dim overlay를 재생
+  const [dimActive, setDimActive] = useState(false);
+  const dimPlayedForFinishRef = useRef(false);
+  useEffect(() => {
+    if (finished && !dimPlayedForFinishRef.current) {
+      dimPlayedForFinishRef.current = true;
+      setDimActive(true);
+    }
+    if (!finished) {
+      // 리셋 시 다음 ceremony를 위해 플래그 복원
+      dimPlayedForFinishRef.current = false;
+      setDimActive(false);
+    }
+  }, [finished]);
+
+  // 기본 시작일: 오늘 — mount마다 random이면 재현 불가능(교재용으로 부적합).
+  // 랜덤화는 welcome 화면의 명시적 "랜덤" 버튼으로만 수행.
+  const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0]);
   const selectedEmail = state?.emails.find(e => e.id === selectedEmailId) || null;
 
   const settingsPanel = (
@@ -67,19 +163,29 @@ export default function Dashboard() {
     />
   );
 
-  const handleReset = () => {
-    setSelectedEmailId(null);
-    reset();
-  };
-
   return (
     <div className="flex flex-col" style={{ background: 'var(--bg-primary)', height: '100vh', overflow: 'hidden', maxWidth: '1600px', margin: '0 auto', width: '100%' }}>
       {/* Top: Turn Interface */}
       <div className="toolbar sticky top-0 z-50 px-6 h-14 flex items-center gap-4">
-        <h1 className="display" style={{ fontSize: '19px', color: 'var(--text-primary)' }}>
+        <h1 className="display" style={{ fontSize: '19px', color: 'var(--text-primary)', flexShrink: 0 }}>
           Vending Machine Simulation
         </h1>
-        <div className="flex-1" />
+        {/* NewsLine 흡수 — 별도 40px strip 제거. sim 실행 중에만 노출, 그 외엔 spacer */}
+        {state ? (
+          <>
+            <div style={{ width: '1px', height: '20px', background: 'var(--border-default)', flexShrink: 0 }} />
+            <NewsLine
+              state={state}
+              log={displayLog}
+              tailDay={tailDay}
+              cursorDay={cursorDay}
+              onSeek={setCursorDay}
+            />
+            <div style={{ width: '1px', height: '20px', background: 'var(--border-default)', flexShrink: 0 }} />
+          </>
+        ) : (
+          <div className="flex-1" />
+        )}
         <ControlPanel
           state={state}
           isLoading={isLoading}
@@ -89,22 +195,47 @@ export default function Dashboard() {
           onStart={startSimulation}
           startDate={startDate}
           onChangeStartDate={setStartDate}
-          onNextTurn={nextTurn}
+          onNextTurn={handleNextTurn}
           onSkipTurns={skipTurns}
           onReset={handleReset}
         />
       </div>
 
-      {/* Error */}
+      {/* Error — 닫기 가능, 원문 메시지는 기술적일 수 있으므로 "오류 —" 접두로 맥락 부여 */}
       {error && (
-        <div className="mx-6 mt-3 px-4 py-2.5" style={{
-          background: 'var(--surface-alert)',
-          border: '1px solid var(--surface-alert-border)',
-          borderRadius: 'var(--radius-md)',
-          color: 'var(--surface-alert-text)',
-          fontSize: '13px',
-        }}>
-          {error}
+        <div
+          className="mx-6 mt-3 px-4 py-2.5 flex items-start gap-3"
+          role="alert"
+          style={{
+            background: 'var(--surface-alert)',
+            border: '1px solid var(--surface-alert-border)',
+            borderRadius: 'var(--radius-md)',
+            color: 'var(--surface-alert-text)',
+            fontSize: '13px',
+          }}
+        >
+          <div style={{ flex: 1, lineHeight: 1.5 }}>
+            <span style={{ fontWeight: 700, marginRight: '6px' }}>오류</span>
+            <span>{error}</span>
+          </div>
+          <button
+            type="button"
+            onClick={clearError}
+            aria-label="오류 메시지 닫기"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--surface-alert-text)',
+              cursor: 'pointer',
+              padding: '0 4px',
+              fontSize: '16px',
+              lineHeight: 1,
+              opacity: 0.7,
+              flexShrink: 0,
+            }}
+          >
+            &times;
+          </button>
         </div>
       )}
 
@@ -140,7 +271,7 @@ export default function Dashboard() {
               padding: '12px 16px',
               borderBottom: '1px solid var(--border-light)',
             }}>
-              <span style={{ fontSize: '14px', fontWeight: 600 }}>Settings</span>
+              <span style={{ fontSize: '14px', fontWeight: 600 }}>설정</span>
               <button
                 onClick={() => setShowSettings(false)}
                 style={{
@@ -169,22 +300,43 @@ export default function Dashboard() {
 
       {state ? (
         <div className="flex flex-col flex-1 overflow-hidden">
-          {/* News Line — 시장 컨텍스트 */}
-          <NewsLine state={state} log={currentLog} />
+          {/* 종료 ceremony — finished일 때만 3-column 위에 full-width 배너 */}
+          {finished && (
+            <FinishBanner
+              bankrupt={finishReason === 'bankrupt'}
+              maxDays={state.maxDays}
+              logs={allLogs}
+              onReset={handleReset}
+            />
+          )}
 
-          {/* Turn Summary — 이번 턴의 주인공 정보 (delta 중심) */}
+          {/* 일회성 dim overlay — animation 종료 시 자동 언마운트 */}
+          {dimActive && (
+            <div
+              className="finish-dim-overlay"
+              aria-hidden="true"
+              onAnimationEnd={() => setDimActive(false)}
+            />
+          )}
+
+          {/* NewsLine은 toolbar에 흡수됨 — 여기서는 TurnSummary가 바로 시작 */}
+
+          {/* Turn Summary — displayLog 기반 + 히스토리 배지. compact는 센터 탭 스크롤로 구동 */}
           <TurnSummary
-            log={currentLog}
+            log={displayLog}
             allLogs={allLogs}
             finished={finished}
-            finishReason={finishReason}
+            isHistory={isHistory}
+            tailDay={tailDay}
+            onReturnLive={returnToLive}
             onInspectWarnings={() => setCenterTab('agent')}
+            compact={isCompact && centerTab === 'agent'}
           />
 
           {/* 3-column layout — 참조 레일 2개 + 센터 drill-down */}
           <div className="dashboard-columns flex flex-1 overflow-hidden">
-            {/* Left: Email */}
-            <div className="sidebar dashboard-left flex-shrink-0 overflow-y-auto p-3" style={{ width: '260px' }}>
+            {/* Left: Email — 레퍼런스 리스트, 240px */}
+            <div className="sidebar dashboard-left flex-shrink-0 overflow-y-auto p-3" style={{ width: '240px' }}>
               <EmailPanel
                 state={state}
                 selectedEmailId={selectedEmailId}
@@ -204,9 +356,9 @@ export default function Dashboard() {
                 flexShrink: 0,
               }}>
                 {([
-                  { key: 'agent', label: 'Agent Log' },
-                  { key: 'email', label: 'Email' },
-                  { key: 'settings', label: 'Settings' },
+                  { key: 'agent', label: '에이전트 로그' },
+                  { key: 'email', label: '이메일' },
+                  { key: 'settings', label: '설정' },
                 ] as const).map(tab => (
                   <button
                     key={tab.key}
@@ -250,10 +402,10 @@ export default function Dashboard() {
                 ))}
               </div>
 
-              {/* Tab content */}
-              <div className="flex-1 overflow-y-auto p-4">
+              {/* Tab content — scrollRef 연결해 TurnSummary compact 트리거 */}
+              <div ref={centerScrollRef} className="flex-1 overflow-y-auto p-4">
                 {centerTab === 'agent' && (
-                  <AgentLog log={currentLog} />
+                  <AgentLog log={displayLog} />
                 )}
                 {centerTab === 'email' && (
                   selectedEmail ? (
@@ -289,14 +441,18 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Right: Vending Machine + Finance */}
-            <div className="dashboard-right flex-shrink-0 overflow-y-auto p-3 space-y-3" style={{
-              width: '408px',
+            {/* Right: Finance(scorecard glance) + Vending Machine(blueprint).
+                340px — opinionated: 오늘의 결과값이 먼저, 도면은 아래. 패널 간 gap 20px으로 distinct reference 리듬 확보 */}
+            <div className="dashboard-right flex-shrink-0 overflow-y-auto p-3" style={{
+              width: '340px',
               borderLeft: '1px solid var(--border-light)',
               background: 'var(--bg-sidebar)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '20px',
             }}>
-              <VendingMachineView machine={state.machine} />
               <FinancialPanel state={state} logs={allLogs} />
+              <VendingMachineView machine={state.machine} />
             </div>
           </div>
         </div>
@@ -319,10 +475,10 @@ export default function Dashboard() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '32px',
                 border: '1px solid var(--border-light)',
+                color: 'var(--text-secondary)',
               }}>
-                🏭
+                <VendingIcon />
               </div>
               <h2 className="display" style={{ fontSize: '34px', color: 'var(--text-primary)', marginBottom: '12px', lineHeight: 1.15 }}>
                 Vending Machine Simulation
@@ -384,7 +540,8 @@ export default function Dashboard() {
                   padding: '16px 20px',
                   color: 'var(--text-on-accent)',
                 }}>
-                  <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '4px' }}>
+                  {/* .display (Hedvig serif) 채택 — hero 컨벤션에 편입, 3번째 헤딩 타입 제거 */}
+                  <h3 className="display" style={{ fontSize: '18px', marginBottom: '4px', lineHeight: 1.2 }}>
                     게임 규칙
                   </h3>
                   <p style={{ fontSize: '11px', opacity: 0.85 }}>
@@ -408,6 +565,34 @@ export default function Dashboard() {
         </div>
       )}
     </div>
+  );
+}
+
+// 1-stroke 자판기 도면 아이콘 — 🏭 emoji 대체. mechanical + warm 톤 유지.
+function VendingIcon() {
+  return (
+    <svg
+      viewBox="0 0 32 40"
+      width="32"
+      height="40"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="3" width="26" height="34" rx="1.5" />
+      <line x1="23" y1="3" x2="23" y2="37" />
+      <line x1="3" y1="26" x2="23" y2="26" />
+      <line x1="10" y1="6" x2="10" y2="26" />
+      <line x1="16" y1="6" x2="16" y2="26" />
+      <line x1="3" y1="12" x2="23" y2="12" />
+      <line x1="3" y1="19" x2="23" y2="19" />
+      <rect x="5" y="29" width="16" height="5" rx="0.8" />
+      <line x1="25" y1="9" x2="27" y2="9" />
+      <line x1="25" y1="13" x2="27" y2="13" />
+    </svg>
   );
 }
 

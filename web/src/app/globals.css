@@ -337,11 +337,48 @@ body {
   background: rgba(0, 0, 0, 0.2);
 }
 
+/* 스피너 공통 — ControlPanel의 loadingSteps에 사용. 런타임 <style> 주입 회피 위해 centralize */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 시뮬레이션 종료 ceremony — 일회성 dim 전환 (2.5s)
+ * 종료 배너가 등장할 때 페이지를 잠깐 흐리게 만들었다가 복귀.
+ * 반복 금지: React 측에서 재렌더 시 replay되지 않도록 마운트-언마운트로 제어. */
+@keyframes finishDim {
+  0%   { opacity: 0; }
+  20%  { opacity: 0.28; }
+  75%  { opacity: 0.28; }
+  100% { opacity: 0; }
+}
+
+.finish-dim-overlay {
+  position: fixed;
+  inset: 0;
+  background: #1B1815;  /* warm near-black, 브랜드 text-primary */
+  pointer-events: none;
+  z-index: 40;
+  animation: finishDim 2500ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+/* 종료 배너 — 상단 full-width, muted-cream, Hedvig display. 3-column 위에 놓임 */
+.finish-banner {
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-default);
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-shrink: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
   }
+  /* 모션 축소 시 dim overlay는 0.01ms로 스냅 → 사실상 스킵됨 */
 }
 
 /* Responsive — ≤1024px에서 3-column → 1-column 스택 (최소 방어, 주 맥락은 데스크톱 관람)

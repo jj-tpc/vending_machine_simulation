@@ -11,7 +11,23 @@ export default function EmailViewer({ email }: Props) {
     return (
       <div className="card p-6 h-full flex items-center justify-center">
         <div className="text-center">
-          <div style={{ fontSize: '32px', marginBottom: '8px', opacity: 0.2 }}>&#9993;</div>
+          {/* 1-stroke envelope — ✉ 유니코드 이모지 대체, opacity로 subtle anchor 유지 */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px', color: 'var(--text-quaternary)', opacity: 0.5 }}>
+            <svg
+              viewBox="0 0 32 32"
+              width="32"
+              height="32"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.25"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="4" y="9" width="24" height="16" rx="1.5" />
+              <path d="M4 10 L16 19 L28 10" />
+            </svg>
+          </div>
           <p style={{ fontSize: '13px', color: 'var(--text-quaternary)' }}>
             좌측에서 이메일을 선택하세요
           </p>
@@ -43,7 +59,7 @@ export default function EmailViewer({ email }: Props) {
 
         <div className="space-y-1">
           <div className="flex items-center gap-2" style={{ fontSize: '13px' }}>
-            <span style={{ color: 'var(--text-tertiary)', width: '32px', flexShrink: 0 }}>From</span>
+            <span style={{ color: 'var(--text-tertiary)', width: '44px', flexShrink: 0 }}>보낸이</span>
             <span style={{
               fontFamily: 'var(--font-mono)',
               fontSize: '12px',
@@ -53,7 +69,7 @@ export default function EmailViewer({ email }: Props) {
             </span>
           </div>
           <div className="flex items-center gap-2" style={{ fontSize: '13px' }}>
-            <span style={{ color: 'var(--text-tertiary)', width: '32px', flexShrink: 0 }}>To</span>
+            <span style={{ color: 'var(--text-tertiary)', width: '44px', flexShrink: 0 }}>받는이</span>
             <span style={{
               fontFamily: 'var(--font-mono)',
               fontSize: '12px',

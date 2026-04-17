@@ -46,12 +46,12 @@ export default function ControlPanel({
       <div className="flex items-center gap-2">
         {notStarted ? (
           <>
-            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Duration:</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>기간</span>
             <button onClick={() => onStart(15, startDate)} disabled={isLoading} className="btn btn-secondary">
-              15 Days
+              15일
             </button>
             <button onClick={() => onStart(30, startDate)} disabled={isLoading} className="btn btn-secondary">
-              30 Days
+              30일
             </button>
           </>
         ) : (
@@ -95,16 +95,7 @@ export default function ControlPanel({
               </>
             )}
 
-            <div className="flex items-center gap-1.5" style={{ fontSize: '13px', flexShrink: 0 }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Day</span>
-              <span style={{ fontWeight: 700, fontSize: '16px', fontVariantNumeric: 'tabular-nums' }}>
-                {state.day}
-              </span>
-              <span style={{ color: 'var(--text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>/ {state.maxDays}</span>
-            </div>
-
-            <div style={{ width: '1px', height: '16px', background: 'var(--border-default)', margin: '0 4px' }} />
-
+            {/* Day N/M 카운터는 Scrubber 라벨로 통합됨 (NewsLine) — 중복 제거 */}
             {finished ? (
               <>
                 <span className="badge" style={{
@@ -113,10 +104,10 @@ export default function ControlPanel({
                   fontSize: '12px',
                   padding: '3px 10px',
                 }}>
-                  {finishReason === 'bankrupt' ? 'BANKRUPT' : 'COMPLETE'}
+                  {finishReason === 'bankrupt' ? '파산' : '완료'}
                 </span>
                 <button onClick={() => setShowResetConfirm(true)} className="btn btn-secondary" style={{ color: 'var(--accent-red)' }}>
-                  Reset
+                  리셋
                 </button>
               </>
             ) : (
@@ -126,10 +117,10 @@ export default function ControlPanel({
                   disabled={isLoading}
                   className="btn btn-primary"
                 >
-                  {isLoading ? 'Processing...' : 'Next Turn'}
+                  {isLoading ? '처리 중…' : '다음 일'}
                 </button>
                 <button onClick={() => setShowResetConfirm(true)} disabled={isLoading} className="btn btn-ghost">
-                  Reset
+                  리셋
                 </button>
               </>
             )}
@@ -137,14 +128,7 @@ export default function ControlPanel({
         )}
       </div>
 
-      {/* Spinner keyframes */}
-      {hasSteps && (
-        <style>{`
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
-      )}
+      {/* @keyframes spin은 globals.css에 centralize됨 (런타임 스타일 주입 회피) */}
 
       {/* Reset confirmation popup */}
       {showResetConfirm && (
@@ -170,7 +154,24 @@ export default function ControlPanel({
             padding: '24px',
             textAlign: 'center',
           }}>
-            <div style={{ fontSize: '28px', marginBottom: '12px' }}>&#9888;&#65039;</div>
+            {/* 1-stroke caution triangle — VS16 emoji 대체 */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', color: 'var(--accent-red)' }}>
+              <svg
+                viewBox="0 0 28 28"
+                width="28"
+                height="28"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M14 4 L25 23 L3 23 Z" />
+                <line x1="14" y1="11" x2="14" y2="17" />
+                <circle cx="14" cy="20" r="0.9" fill="currentColor" stroke="none" />
+              </svg>
+            </div>
             <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
               시뮬레이션을 리셋할까요?
             </h3>
