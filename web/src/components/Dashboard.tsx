@@ -125,7 +125,7 @@ export default function Dashboard() {
             if (e.target === e.currentTarget) setShowSettings(false);
           }}
         >
-          <div style={{
+          <div className="settings-modal" style={{
             width: '780px',
             maxHeight: 'calc(100vh - 120px)',
             overflowY: 'auto',
@@ -181,9 +181,9 @@ export default function Dashboard() {
           />
 
           {/* 3-column layout — 참조 레일 2개 + 센터 drill-down */}
-          <div className="flex flex-1 overflow-hidden">
+          <div className="dashboard-columns flex flex-1 overflow-hidden">
             {/* Left: Email */}
-            <div className="sidebar flex-shrink-0 overflow-y-auto p-3" style={{ width: '260px' }}>
+            <div className="sidebar dashboard-left flex-shrink-0 overflow-y-auto p-3" style={{ width: '260px' }}>
               <EmailPanel
                 state={state}
                 selectedEmailId={selectedEmailId}
@@ -193,7 +193,7 @@ export default function Dashboard() {
             </div>
 
             {/* Center: Tabbed content */}
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="dashboard-center flex-1 flex flex-col overflow-hidden">
               {/* Tab buttons */}
               <div style={{
                 display: 'flex',
@@ -289,7 +289,7 @@ export default function Dashboard() {
             </div>
 
             {/* Right: Vending Machine + Finance */}
-            <div className="flex-shrink-0 overflow-y-auto p-3 space-y-3" style={{
+            <div className="dashboard-right flex-shrink-0 overflow-y-auto p-3 space-y-3" style={{
               width: '408px',
               borderLeft: '1px solid var(--border-light)',
               background: 'var(--bg-sidebar)',
@@ -301,11 +301,11 @@ export default function Dashboard() {
         </div>
       ) : (
         /* Pre-simulation: Settings + Welcome */
-        <div className="flex flex-1 overflow-hidden">
+        <div className="welcome-layout flex flex-1 overflow-hidden">
           <div className="sidebar flex-shrink-0 overflow-y-auto p-4" style={{ width: '320px' }}>
             {settingsPanel}
           </div>
-          <div className="flex-1 overflow-y-auto flex items-center p-6 gap-6">
+          <div className="welcome-main flex-1 overflow-y-auto flex items-center p-6 gap-6">
             <div className="flex-1" />
             {/* Center: Welcome + Date */}
             <div className="text-center" style={{ maxWidth: '400px', flexShrink: 0 }}>

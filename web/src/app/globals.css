@@ -343,3 +343,41 @@ body {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* Responsive — ≤1024px에서 3-column → 1-column 스택 (최소 방어, 주 맥락은 데스크톱 관람)
+ * 각 패널은 자연 높이로 흐르고 외곽 컨테이너가 스크롤 */
+@media (max-width: 1024px) {
+  .dashboard-columns {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+  .dashboard-left,
+  .dashboard-right {
+    width: 100% !important;
+    max-height: none !important;
+    border-right: none !important;
+    border-left: none !important;
+    border-bottom: 1px solid var(--border-light) !important;
+  }
+  .dashboard-center {
+    flex: 1 0 auto !important;
+    min-height: 380px;
+  }
+  .settings-modal {
+    width: calc(100vw - 24px) !important;
+  }
+  .welcome-layout {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+  .welcome-layout .sidebar {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-light) !important;
+  }
+  .welcome-main {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 24px !important;
+  }
+}
