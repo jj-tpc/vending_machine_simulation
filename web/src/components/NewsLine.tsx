@@ -104,13 +104,16 @@ function NewsLineImpl({ state, log, tailDay, cursorDay, onSeek }: Props) {
   }, [visibleEvents]);
 
   return (
-    /* toolbar에 흡수된 모드 — 자체 strip 제거, flex:1 inline row로 동작 */
+    /* Self-strip — 뉴스 티커의 RTL 스크롤은 의도된 디자인. toolbar와 분리해 고유 40px 영역 유지 */
     <div style={{
-      flex: 1,
-      minWidth: 0,
+      background: 'var(--bg-card)',
+      borderBottom: '1px solid var(--border-light)',
+      padding: '8px 20px',
       display: 'flex',
       alignItems: 'center',
-      gap: '14px',
+      gap: '16px',
+      minHeight: '40px',
+      flexShrink: 0,
     }}>
       {/* Day label + Scrubber — N일 / M일 표기 + 드래그/클릭/키보드 탐색 */}
       <div className="flex items-center gap-3" style={{ flexShrink: 0 }}>
