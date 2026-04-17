@@ -2,11 +2,11 @@ import {
   SimulationState,
   TurnLog,
   TurnResponse,
-  MachineSlot,
   LlmVendor,
   Difficulty,
 } from './types';
 import { DEFAULT_DIFFICULTY, getDifficultyConfig } from './difficulty';
+import { calculateNetWorth } from './net-worth';
 import { generateMarketCondition } from './market';
 import { createEmptyMachine } from './vending-machine';
 import { processDeliveries, initSupplierStates, processRandomEvents, generateSuppliers } from './suppliers';
@@ -43,16 +43,7 @@ export function createInitialState(
   };
 }
 
-// 순자산 계산 — MACHINE_RENTAL_FEE는 상태에 저장된 난이도에서 참조
-function calculateNetWorth(state: SimulationState): number {
-  const config = getDifficultyConfig(state.difficulty);
-  const cashTotal = state.balance + state.machineBalance;
-  const storageValue = state.storage.reduce((sum, s) => sum + s.quantity * 0.75, 0);
-  const machineValue = state.machine
-    .filter((s): s is MachineSlot & { productName: string } => s.productName !== null && s.quantity > 0)
-    .reduce((sum, s) => sum + s.quantity * 0.75, 0);
-  return cashTotal + storageValue + machineValue - config.machineRentalFee;
-}
+// 순자산 계산은 pure util(simulation/net-worth.ts)에 분리 — 클라이언트/서버 공용.
 
 export type ProgressCallback = (step: string, status: 'start' | 'done', doneLabel?: string) => void;
 

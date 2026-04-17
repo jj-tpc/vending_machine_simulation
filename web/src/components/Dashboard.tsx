@@ -294,6 +294,7 @@ export default function Dashboard() {
             <FinishBanner
               bankrupt={finishReason === 'bankrupt'}
               maxDays={state.maxDays}
+              difficulty={state.difficulty}
               logs={allLogs}
               onReset={handleReset}
             />
@@ -567,14 +568,14 @@ export default function Dashboard() {
                     시스템 프롬프트를 수정하여, Agent의 행동과 방향을 조정하여 수익을 극대화 시켜보세요.
                   </p>
                 </div>
-                {/* Body — 번호 매긴 핸드북 스타일 */}
+                {/* Body — 번호 매긴 핸드북 스타일. 시작 자금·운영비·파산·대여료는 현재 선택된 난이도에 동기화 */}
                 <div style={{ background: 'var(--bg-card)', padding: '14px 18px' }}>
-                  <Rule n={1} text="시작 자금 $500 · 매일 운영비 $2 자동 차감" />
+                  <Rule n={1} text={`시작 자금 $${DIFFICULTY_CONFIGS[difficulty].startingBalance} · 매일 운영비 $${DIFFICULTY_CONFIGS[difficulty].dailyFee} 자동 차감`} />
                   <Rule n={2} text="12슬롯 자판기 (소형 6칸 각 15개, 대형 6칸 각 8개)" />
                   <Rule n={3} text="공급업체에 이메일 주문 · 1–3일 뒤 배송" />
                   <Rule n={4} text="날씨·계절·주말·뉴스가 수요와 매출에 영향" />
-                  <Rule n={5} text="잔고가 5일 연속 음수면 파산" />
-                  <Rule n={6} text="시뮬레이션 종료 시 자판기 대여료 $400 차감" last />
+                  <Rule n={5} text={`잔고가 ${DIFFICULTY_CONFIGS[difficulty].bankruptcyThreshold}일 연속 음수면 파산`} />
+                  <Rule n={6} text={`시뮬레이션 종료 시 자판기 대여료 $${DIFFICULTY_CONFIGS[difficulty].machineRentalFee} 차감`} last />
                 </div>
               </div>
 

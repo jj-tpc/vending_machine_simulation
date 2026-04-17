@@ -1,26 +1,28 @@
 'use client';
 
 import { memo } from 'react';
-import { TurnLog } from '@/simulation/types';
+import { TurnLog, Difficulty } from '@/simulation/types';
+import { getDifficultyConfig } from '@/simulation/difficulty';
 
 interface Props {
   bankrupt: boolean;
   maxDays: number;
+  difficulty: Difficulty;
   logs: TurnLog[];
   onReset: () => void;
 }
-
-// 시뮬레이션 초기 자본 (engine.ts STARTING_BALANCE와 동일) — 델타 기준값
-const STARTING_NET_WORTH = 500;
 
 /**
  * 시뮬레이션 종료 ceremony 배너.
  * 3-column 위에 얹혀 피날레 역할. Hedvig display로 종료 문구, 우측에 순자산 델타 + 리셋 CTA.
  * 색·배경은 중립(muted-cream) 유지, 손익은 숫자 색으로만 표현 — 디자인 원칙 #3(기계적 정직함).
  */
-function FinishBannerImpl({ bankrupt, maxDays, logs, onReset }: Props) {
-  const finalNetWorth = logs.length > 0 ? logs[logs.length - 1].netWorth : STARTING_NET_WORTH;
-  const delta = finalNetWorth - STARTING_NET_WORTH;
+function FinishBannerImpl({ bankrupt, maxDays, difficulty, logs, onReset }: Props) {
+  // 난이도별 초기 순자산 = startingBalance − machineRentalFee (engine.calculateNetWorth Day 0 식)
+  const config = getDifficultyConfig(difficulty);
+  const startingNetWorth = config.startingBalance - config.machineRentalFee;
+  const finalNetWorth = logs.length > 0 ? logs[logs.length - 1].netWorth : startingNetWorth;
+  const delta = finalNetWorth - startingNetWorth;
   const deltaPositive = delta >= 0;
   const daysPlayed = logs.length;
 
@@ -72,7 +74,7 @@ function FinishBannerImpl({ bankrupt, maxDays, logs, onReset }: Props) {
           fontFamily: 'var(--font-mono)',
           fontVariantNumeric: 'tabular-nums',
         }}>
-          <span>시작 ${STARTING_NET_WORTH.toFixed(2)}</span>
+          <span>시작 ${startingNetWorth.toFixed(2)}</span>
           <span style={{ color: 'var(--text-quaternary)' }}>→</span>
           <span>{daysPlayed}일차 ${finalNetWorth.toFixed(2)}</span>
         </div>
