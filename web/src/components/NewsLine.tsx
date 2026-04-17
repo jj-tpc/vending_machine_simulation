@@ -135,12 +135,12 @@ export default function NewsLine({ state, log }: Props) {
           <div className="flex items-center gap-3 flex-1" style={{ minWidth: 0, overflow: 'hidden' }}>
             <span style={{
               padding: '2px 8px',
-              background: '#FFFBEB',
-              color: 'var(--accent-orange)',
+              background: 'var(--surface-pending)',
+              color: 'var(--surface-pending-text)',
               fontSize: '10px',
               fontWeight: 700,
               borderRadius: '4px',
-              border: '1px solid #FDE68A',
+              border: '1px solid var(--surface-pending-border)',
               flexShrink: 0,
             }}>
               NEWS

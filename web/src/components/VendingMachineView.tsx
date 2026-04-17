@@ -32,7 +32,7 @@ function getMaxQty(size: 'small' | 'large'): number {
 
 export default function VendingMachineView({ machine }: Props) {
   return (
-    <div className="card p-3">
+    <div className="surface-rail p-3">
       <h3 className="section-heading" style={{ marginBottom: '8px' }}>
         Vending Machine
       </h3>
