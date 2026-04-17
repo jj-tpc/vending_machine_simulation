@@ -108,8 +108,8 @@ export default function ControlPanel({
             {finished ? (
               <>
                 <span className="badge" style={{
-                  background: finishReason === 'bankrupt' ? '#FEF2F2' : '#FFF7ED',
-                  color: finishReason === 'bankrupt' ? 'var(--accent-red)' : 'var(--accent-orange)',
+                  background: finishReason === 'bankrupt' ? 'var(--surface-alert)' : 'var(--surface-pending)',
+                  color: finishReason === 'bankrupt' ? 'var(--surface-alert-text)' : 'var(--surface-pending-text)',
                   fontSize: '12px',
                   padding: '3px 10px',
                 }}>

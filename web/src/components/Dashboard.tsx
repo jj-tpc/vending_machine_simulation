@@ -98,10 +98,10 @@ export default function Dashboard() {
       {/* Error */}
       {error && (
         <div className="mx-6 mt-3 px-4 py-2.5" style={{
-          background: '#FEF2F2',
-          border: '1px solid #FECACA',
+          background: 'var(--surface-alert)',
+          border: '1px solid var(--surface-alert-border)',
           borderRadius: 'var(--radius-md)',
-          color: 'var(--accent-red)',
+          color: 'var(--surface-alert-text)',
           fontSize: '13px',
         }}>
           {error}
@@ -178,6 +178,7 @@ export default function Dashboard() {
             allLogs={allLogs}
             finished={finished}
             finishReason={finishReason}
+            onInspectWarnings={() => setCenterTab('agent')}
           />
 
           {/* 3-column layout — 참조 레일 2개 + 센터 drill-down */}
@@ -391,14 +392,14 @@ export default function Dashboard() {
                     시스템 프롬프트를 수정하여, Agent의 행동과 방향을 조정하여 수익을 극대화 시켜보세요.
                   </p>
                 </div>
-                {/* Body */}
-                <div style={{ background: 'var(--bg-card)', padding: '16px 20px' }}>
-                  <RuleItem title="시작 자금은 $500입니다" desc="매일 운영비 $2가 자동으로 빠져나갑니다." />
-                  <RuleItem title="자판기에는 12개의 슬롯이 있습니다" desc="소형 6칸에는 최대 15개, 대형 6칸에는 최대 8개까지 넣을 수 있습니다." />
-                  <RuleItem title="상품은 공급업체에 이메일로 주문합니다" desc="주문 후 1~3일 뒤에 배송이 도착합니다. 공급업체마다 가격과 성격이 다릅니다." />
-                  <RuleItem title="시장 상황이 매출에 영향을 줍니다" desc="날씨, 계절, 주말 여부, 뉴스 이벤트에 따라 고객 수와 구매 패턴이 달라집니다." />
-                  <RuleItem title="잔고가 5일 연속 마이너스면 파산합니다" desc="현금 흐름을 잘 관리하고, 자판기에 쌓인 매출을 적시에 수거하세요." />
-                  <RuleItem title="시뮬레이션이 끝나면 대여료 $400을 냅니다" desc="최종 정산에서 차감되므로, 충분한 이익을 확보해야 합니다." last />
+                {/* Body — 번호 매긴 핸드북 스타일 */}
+                <div style={{ background: 'var(--bg-card)', padding: '14px 18px' }}>
+                  <Rule n={1} text="시작 자금 $500 · 매일 운영비 $2 자동 차감" />
+                  <Rule n={2} text="12슬롯 자판기 (소형 6칸 각 15개, 대형 6칸 각 8개)" />
+                  <Rule n={3} text="공급업체에 이메일 주문 · 1–3일 뒤 배송" />
+                  <Rule n={4} text="날씨·계절·주말·뉴스가 수요와 매출에 영향" />
+                  <Rule n={5} text="잔고가 5일 연속 음수면 파산" />
+                  <Rule n={6} text="시뮬레이션 종료 시 자판기 대여료 $400 차감" last />
                 </div>
               </div>
 
@@ -410,15 +411,32 @@ export default function Dashboard() {
   );
 }
 
-function RuleItem({ title, desc, last }: { title: string; desc: string; last?: boolean }) {
+function Rule({ n, text, last }: { n: number; text: string; last?: boolean }) {
   return (
-    <div style={{
-      paddingBottom: last ? 0 : '10px',
-      marginBottom: last ? 0 : '10px',
+    <div className="flex items-start gap-3" style={{
+      paddingBottom: last ? 0 : '8px',
+      marginBottom: last ? 0 : '8px',
       borderBottom: last ? 'none' : '1px solid var(--border-light)',
     }}>
-      <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{title}</div>
-      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px', lineHeight: 1.5 }}>{desc}</div>
+      <span style={{
+        fontSize: '10px',
+        fontFamily: 'var(--font-mono)',
+        color: 'var(--text-quaternary)',
+        fontWeight: 600,
+        letterSpacing: '0.02em',
+        marginTop: '2px',
+        flexShrink: 0,
+      }}>
+        {String(n).padStart(2, '0')}
+      </span>
+      <span style={{
+        fontSize: '12px',
+        color: 'var(--text-secondary)',
+        lineHeight: 1.55,
+      }}>
+        {text}
+      </span>
     </div>
   );
 }
+

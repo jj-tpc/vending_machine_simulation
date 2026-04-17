@@ -188,8 +188,8 @@ function Pill({ label, highlight }: { label: string; highlight?: boolean }) {
       fontSize: '11px',
       padding: '2px 8px',
       borderRadius: '4px',
-      background: highlight ? '#FFF7ED' : 'var(--fill-light)',
-      color: highlight ? 'var(--accent-orange)' : 'var(--text-secondary)',
+      background: highlight ? 'var(--surface-pending)' : 'var(--fill-light)',
+      color: highlight ? 'var(--surface-pending-text)' : 'var(--text-secondary)',
       fontWeight: 500,
       whiteSpace: 'nowrap',
     }}>

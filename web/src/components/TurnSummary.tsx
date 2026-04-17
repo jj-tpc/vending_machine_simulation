@@ -2,19 +2,22 @@
 
 import { memo, useMemo } from 'react';
 import { TurnLog } from '@/simulation/types';
+import { dayOfWeekLabel } from '@/simulation/market';
 
 interface Props {
   log: TurnLog | null;
   allLogs: TurnLog[];
   finished: boolean;
   finishReason: string | null;
+  /** WarningStripe 클릭 시 호출 (Dashboard에서 Agent 탭으로 전환) */
+  onInspectWarnings?: () => void;
 }
 
 /**
  * 턴 요약 히어로. 평등한 3-column 위에 두어 "이번 턴의 주인공 정보"를 선명히.
  * centered big-number hero 패턴 회피 — 좌측 정렬 logbook 스타일.
  */
-function TurnSummaryImpl({ log, allLogs, finished, finishReason }: Props) {
+function TurnSummaryImpl({ log, allLogs, finished, finishReason, onInspectWarnings }: Props) {
   // Hook은 조건부 return 이전에 호출해야 함 (rules-of-hooks)
   const { previousLog, salesDelta, salesDeltaPct, balanceDelta, netWorthDelta } = useMemo(() => {
     if (!log) return { previousLog: null, salesDelta: null, salesDeltaPct: null, balanceDelta: null, netWorthDelta: null };
@@ -55,10 +58,10 @@ function TurnSummaryImpl({ log, allLogs, finished, finishReason }: Props) {
         <StatusBanner bankrupt={finishReason === 'bankrupt'} />
       )}
       {!finished && log.warnings && log.warnings.length > 0 && (
-        <WarningStripe count={log.warnings.length} />
+        <WarningStripe count={log.warnings.length} onInspect={onInspectWarnings} />
       )}
 
-      {/* Turn label */}
+      {/* Turn label — Date 포함해 스크린샷 crop 시에도 맥락 유지 */}
       <div style={{
         fontSize: '10px',
         fontWeight: 700,
@@ -67,7 +70,26 @@ function TurnSummaryImpl({ log, allLogs, finished, finishReason }: Props) {
         letterSpacing: '0.1em',
         marginBottom: '8px',
       }}>
-        Turn {log.day} — 완료
+        Turn {log.day}
+        <span style={{
+          margin: '0 8px',
+          color: 'var(--text-quaternary)',
+          fontWeight: 400,
+        }}>·</span>
+        <span style={{
+          fontFamily: 'var(--font-mono)',
+          fontWeight: 500,
+          textTransform: 'none',
+          letterSpacing: 0,
+        }}>
+          {log.market.date} ({dayOfWeekLabel(log.market.dayOfWeek)})
+        </span>
+        <span style={{
+          margin: '0 8px',
+          color: 'var(--text-quaternary)',
+          fontWeight: 400,
+        }}>·</span>
+        완료
       </div>
 
       {/* Metrics row — 좌측 정렬 tabular logbook */}
@@ -206,21 +228,38 @@ function StatusBanner({ bankrupt }: { bankrupt: boolean }) {
 const TurnSummary = memo(TurnSummaryImpl);
 export default TurnSummary;
 
-function WarningStripe({ count }: { count: number }) {
+function WarningStripe({ count, onInspect }: { count: number; onInspect?: () => void }) {
+  const baseStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '3px 8px',
+    background: 'var(--surface-warning)',
+    border: '1px solid var(--surface-warning-border)',
+    borderRadius: 'var(--radius-sm)',
+    fontSize: '11px',
+    color: 'var(--surface-warning-text)',
+    marginBottom: '10px',
+  };
+
+  if (!onInspect) {
+    return <div style={baseStyle}>⚠ 이번 턴 파싱 경고 {count}건 — AgentLog 확인</div>;
+  }
+
   return (
-    <div style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: '6px',
-      padding: '3px 8px',
-      background: 'var(--surface-warning)',
-      border: '1px solid var(--surface-warning-border)',
-      borderRadius: 'var(--radius-sm)',
-      fontSize: '11px',
-      color: 'var(--surface-warning-text)',
-      marginBottom: '10px',
-    }}>
-      ⚠ 이번 턴 파싱 경고 {count}건 — AgentLog 확인
-    </div>
+    <button
+      type="button"
+      onClick={onInspect}
+      style={{
+        ...baseStyle,
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        transition: 'background var(--transition-fast)',
+      }}
+      onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-warning-border)')}
+      onMouseLeave={e => (e.currentTarget.style.background = 'var(--surface-warning)')}
+    >
+      ⚠ 이번 턴 파싱 경고 {count}건 — AgentLog 확인 →
+    </button>
   );
 }
