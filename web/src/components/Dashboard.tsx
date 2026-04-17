@@ -170,22 +170,7 @@ export default function Dashboard() {
         <h1 className="display" style={{ fontSize: '19px', color: 'var(--text-primary)', flexShrink: 0 }}>
           Vending Machine Simulation
         </h1>
-        {/* NewsLine 흡수 — 별도 40px strip 제거. sim 실행 중에만 노출, 그 외엔 spacer */}
-        {state ? (
-          <>
-            <div style={{ width: '1px', height: '20px', background: 'var(--border-default)', flexShrink: 0 }} />
-            <NewsLine
-              state={state}
-              log={displayLog}
-              tailDay={tailDay}
-              cursorDay={cursorDay}
-              onSeek={setCursorDay}
-            />
-            <div style={{ width: '1px', height: '20px', background: 'var(--border-default)', flexShrink: 0 }} />
-          </>
-        ) : (
-          <div className="flex-1" />
-        )}
+        <div className="flex-1" />
         <ControlPanel
           state={state}
           isLoading={isLoading}
@@ -319,7 +304,14 @@ export default function Dashboard() {
             />
           )}
 
-          {/* NewsLine은 toolbar에 흡수됨 — 여기서는 TurnSummary가 바로 시작 */}
+          {/* NewsLine — 자체 40px strip. RTL 스크롤 ticker는 의도된 디자인 */}
+          <NewsLine
+            state={state}
+            log={displayLog}
+            tailDay={tailDay}
+            cursorDay={cursorDay}
+            onSeek={setCursorDay}
+          />
 
           {/* Turn Summary — displayLog 기반 + 히스토리 배지. compact는 센터 탭 스크롤로 구동 */}
           <TurnSummary
