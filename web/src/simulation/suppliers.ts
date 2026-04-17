@@ -763,8 +763,15 @@ export function processDeliveries(
   orders: Order[],
   storage: StorageItem[],
   currentDay: number,
-  suppliers: Supplier[]
+  suppliers: Supplier[],
+  deliveryFreeze: boolean = false,
 ): { orders: Order[]; storage: StorageItem[]; delivered: Order[]; deliveryEmails: Email[] } {
+  // 이벤트 durationConstraints.deliveryFreeze가 켜져있으면 이번 턴 도착 처리 스킵.
+  // 주문은 유지되고, freeze 해제 턴부터 deliveryDay <= currentDay 조건으로 밀려있던 건이 한 번에 도착.
+  if (deliveryFreeze) {
+    return { orders, storage, delivered: [], deliveryEmails: [] };
+  }
+
   const delivered: Order[] = [];
   const deliveryEmails: Email[] = [];
   const newStorage = [...storage];

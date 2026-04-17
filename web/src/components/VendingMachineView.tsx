@@ -5,6 +5,8 @@ import { MachineSlot } from '@/simulation/types';
 
 interface Props {
   machine: MachineSlot[];
+  /** 현재 활성 이벤트 때문에 수리 대기 중인 슬롯들 (row,col) */
+  damagedSlots?: { row: number; col: number }[];
 }
 
 // Corner ticks 정적 스타일 — 매 렌더 재생성 방지
@@ -55,13 +57,17 @@ function stockLevel(pct: number): 'full' | 'mid' | 'low' {
  * 기술 도면 스타일 자판기 시각화.
  * Small 2행 / Large 2행을 구획으로 분리, 각 셀은 [좌표·이름·fill bar·qty·price].
  */
-function VendingMachineViewImpl({ machine }: Props) {
+function VendingMachineViewImpl({ machine, damagedSlots }: Props) {
   // 데이터 네이티브 4×3 순회 (machine 레퍼런스가 같으면 재계산 생략)
   const rows = useMemo(
     () => [0, 1, 2, 3].map(row =>
       [0, 1, 2].map(col => machine.find(s => s.row === row && s.col === col)).filter((s): s is MachineSlot => !!s)
     ),
     [machine]
+  );
+  const damagedSet = useMemo(
+    () => new Set((damagedSlots ?? []).map(s => `${s.row},${s.col}`)),
+    [damagedSlots],
   );
 
   return (
@@ -91,8 +97,8 @@ function VendingMachineViewImpl({ machine }: Props) {
         {/* Small 섹션 */}
         <SizeBanner label="Small" max={15} />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px', marginBottom: '8px' }}>
-          {rows[0].map(slot => <Cell key={`${slot.row}-${slot.col}`} slot={slot} />)}
-          {rows[1].map(slot => <Cell key={`${slot.row}-${slot.col}`} slot={slot} />)}
+          {rows[0].map(slot => <Cell key={`${slot.row}-${slot.col}`} slot={slot} damaged={damagedSet.has(`${slot.row},${slot.col}`)} />)}
+          {rows[1].map(slot => <Cell key={`${slot.row}-${slot.col}`} slot={slot} damaged={damagedSet.has(`${slot.row},${slot.col}`)} />)}
         </div>
 
         {/* 구획 구분선 */}
@@ -105,8 +111,8 @@ function VendingMachineViewImpl({ machine }: Props) {
         {/* Large 섹션 */}
         <SizeBanner label="Large" max={8} />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
-          {rows[2].map(slot => <Cell key={`${slot.row}-${slot.col}`} slot={slot} />)}
-          {rows[3].map(slot => <Cell key={`${slot.row}-${slot.col}`} slot={slot} />)}
+          {rows[2].map(slot => <Cell key={`${slot.row}-${slot.col}`} slot={slot} damaged={damagedSet.has(`${slot.row},${slot.col}`)} />)}
+          {rows[3].map(slot => <Cell key={`${slot.row}-${slot.col}`} slot={slot} damaged={damagedSet.has(`${slot.row},${slot.col}`)} />)}
         </div>
       </div>
 
@@ -145,7 +151,7 @@ function SizeBanner({ label, max }: { label: string; max: number }) {
   );
 }
 
-function Cell({ slot }: { slot: MachineSlot }) {
+function Cell({ slot, damaged = false }: { slot: MachineSlot; damaged?: boolean }) {
   const maxQty = getMaxQty(slot.size);
   const hasStock = slot.productName && slot.quantity > 0;
   const fillPct = hasStock ? (slot.quantity / maxQty) * 100 : 0;
@@ -155,17 +161,41 @@ function Cell({ slot }: { slot: MachineSlot }) {
 
   return (
     <div style={{
-      background: 'var(--bg-card)',
-      border: hasStock
-        ? '1px solid var(--border-light)'
-        : '1px dashed var(--border-default)',
+      position: 'relative',
+      background: damaged ? 'var(--surface-alert)' : 'var(--bg-card)',
+      border: damaged
+        ? '1px solid var(--surface-alert-border)'
+        : hasStock
+          ? '1px solid var(--border-light)'
+          : '1px dashed var(--border-default)',
       borderRadius: 'var(--radius-sm)',
       padding: '6px 7px 7px',
       minHeight: '66px',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'space-between',
+      opacity: damaged ? 0.7 : 1,
     }}>
+      {damaged && (
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          fontSize: '9px',
+          fontWeight: 700,
+          color: 'var(--surface-alert-text)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.06em',
+          background: 'var(--bg-card)',
+          padding: '1px 4px',
+          borderRadius: '2px',
+          border: '1px solid var(--surface-alert-border)',
+          pointerEvents: 'none',
+        }}>
+          수리 중
+        </div>
+      )}
       {/* 좌표 + 이름 */}
       <div>
         <div style={{

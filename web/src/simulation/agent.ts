@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { createMainModel } from './llm';
 import { SimulationState, AgentAction, MarketCondition, Order, Email, LlmVendor, DifficultyConfig } from './types';
 import { getDifficultyConfig } from './difficulty';
+import { aggregateEventEffects } from './market-events';
 import { machineInventorySummary, storageSummary, stockMachine, setSlotPrice, collectCash } from './vending-machine';
 import { supplierDirectory, processAgentEmail, ordersSummary } from './suppliers';
 
@@ -333,6 +334,31 @@ export function generateMorningReport(
       if (inst.oneTimeFee) {
         parts.push(`⚠ ${ev.headline}: $${inst.oneTimeFee.amount.toFixed(2)} 즉시 차감 (${inst.oneTimeFee.reason})`);
       }
+    }
+  }
+
+  // 현재 활성 지속 제약 — 배송 동결·파손 슬롯·판매 상한. 에이전트가 매 턴 인지해야 함.
+  const activeEvents = state.marketEvents.filter(e => e.expiresDay > state.day);
+  const aggregated = aggregateEventEffects(activeEvents);
+  const constraints = aggregated.durationConstraints;
+  if (constraints && (constraints.deliveryFreeze || constraints.damagedSlots?.length || constraints.dailySalesCap !== undefined)) {
+    parts.push('\n--- 현재 운영 제약 ---');
+    if (constraints.deliveryFreeze) {
+      // 어떤 이벤트로 인한 freeze인지 가장 늦게 만료되는 이벤트 기준으로 남은 일수 표시
+      const freezeEvent = activeEvents.find(e => e.effects.durationConstraints?.deliveryFreeze);
+      const remaining = freezeEvent ? freezeEvent.expiresDay - state.day : 0;
+      parts.push(`⛔ 배송 동결: 남은 ${remaining}일 (이 기간 주문 도착 불가, 주문은 누적 후 해제 시 일괄 도착)`);
+    }
+    if (constraints.damagedSlots && constraints.damagedSlots.length > 0) {
+      const slotList = constraints.damagedSlots.map(s => `[${s.row},${s.col}]`).join(', ');
+      const damagedEvent = activeEvents.find(e => e.effects.durationConstraints?.damagedSlots?.length);
+      const remaining = damagedEvent ? damagedEvent.expiresDay - state.day : 0;
+      parts.push(`🛠 고장 슬롯: ${slotList} (수리까지 남은 ${remaining}일, 이 기간 판매 불가)`);
+    }
+    if (constraints.dailySalesCap !== undefined) {
+      const capEvent = activeEvents.find(e => e.effects.durationConstraints?.dailySalesCap !== undefined);
+      const remaining = capEvent ? capEvent.expiresDay - state.day : 0;
+      parts.push(`📦 일일 판매 상한: ${constraints.dailySalesCap}개 (남은 ${remaining}일, 총 판매량 비례 축소)`);
     }
   }
 

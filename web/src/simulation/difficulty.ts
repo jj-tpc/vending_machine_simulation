@@ -30,6 +30,12 @@ export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {
       stockLossFixedMax: 0,
       oneTimeFeeMax: 0,
     },
+    durationConstraintClamps: {
+      maxActiveDays: 0,           // 비활성
+      deliveryFreezeEnabled: false,
+      maxDamagedSlots: 0,
+      minDailySalesCap: 100,      // 사실상 무제한
+    },
   },
 
   normal: {
@@ -56,6 +62,12 @@ export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {
       stockLossFixedMax: 10,
       oneTimeFeeMax: 50,
     },
+    durationConstraintClamps: {
+      maxActiveDays: 2,             // 최대 2일 제약
+      deliveryFreezeEnabled: false, // 보통에선 freeze까지는 허용 안 함
+      maxDamagedSlots: 1,           // 동시 1슬롯만
+      minDailySalesCap: 8,          // 하한 8개
+    },
   },
 
   hard: {
@@ -81,6 +93,12 @@ export const DIFFICULTY_CONFIGS: Record<Difficulty, DifficultyConfig> = {
       stockLossPercentageMax: 0.35,
       stockLossFixedMax: 25,
       oneTimeFeeMax: 150,
+    },
+    durationConstraintClamps: {
+      maxActiveDays: 3,             // 15/30일 게임 기준 20%/10% 상한
+      deliveryFreezeEnabled: true,  // 어려움에서만 freeze 허용
+      maxDamagedSlots: 3,           // 동시 최대 3슬롯
+      minDailySalesCap: 3,          // 하한 3개 (배급제 수준)
     },
   },
 };

@@ -449,7 +449,19 @@ export default function Dashboard() {
               gap: '20px',
             }}>
               <FinancialPanel state={state} logs={allLogs} />
-              <VendingMachineView machine={state.machine} />
+              <VendingMachineView
+                machine={state.machine}
+                damagedSlots={(() => {
+                  // 현재 활성 이벤트의 durationConstraints.damagedSlots 합집합
+                  const set = new Map<string, { row: number; col: number }>();
+                  for (const ev of state.marketEvents) {
+                    if (ev.expiresDay <= state.day) continue;
+                    const slots = ev.effects.durationConstraints?.damagedSlots;
+                    if (slots) for (const s of slots) set.set(`${s.row},${s.col}`, s);
+                  }
+                  return Array.from(set.values());
+                })()}
+              />
             </div>
           </div>
         </div>
