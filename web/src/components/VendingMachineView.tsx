@@ -231,6 +231,7 @@ function FillBar({ pct, color, level }: { pct: number; color: string; level: 'fu
   // 재고 수준에 따라 바 색상·투명도 조정
   const opacity = level === 'full' ? 0.85 : level === 'mid' ? 0.65 : 0.45;
   const trackColor = level === 'low' ? 'var(--surface-alert)' : 'var(--border-light)';
+  const scale = Math.max(0, Math.min(pct / 100, 1));
 
   return (
     <div style={{
@@ -240,12 +241,15 @@ function FillBar({ pct, color, level }: { pct: number; color: string; level: 'fu
       borderRadius: '2px',
       overflow: 'hidden',
     }}>
+      {/* transform: scaleX → GPU 가속, layout thrash 없음 */}
       <div style={{
-        width: `${pct}%`,
+        width: '100%',
         height: '100%',
         background: color,
         opacity,
-        transition: 'width 500ms ease, opacity 300ms ease',
+        transformOrigin: 'left center',
+        transform: `scaleX(${scale})`,
+        transition: 'transform 500ms ease, opacity 300ms ease',
       }} />
     </div>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useMemo, useRef, useEffect, useCallback } from 'react';
+import { memo, useMemo, useRef, useEffect, useCallback, useState } from 'react';
 import { TurnLog, SimulationState } from '@/simulation/types';
 import { weatherLabel, seasonLabel, dayOfWeekLabel } from '@/simulation/market';
 
@@ -12,6 +12,20 @@ interface Props {
 // Speed: pixels per second (lower = slower)
 const TICKER_SPEED = 20;
 
+// prefers-reduced-motion이면 RAF loop 자체를 가동하지 않는다.
+// globals.css의 transition/animation-duration 제한만으로는 JS RAF을 못 막기 때문.
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReduced(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return reduced;
+}
+
 function NewsLineImpl({ state, log }: Props) {
   const market = log?.market;
   const visibleEvents = state.marketEvents.filter(e => e.visible && e.expiresDay > state.day);
@@ -20,6 +34,8 @@ function NewsLineImpl({ state, log }: Props) {
   const tickerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number | null>(null);
   const posRef = useRef(0);
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const tickerActive = visibleEvents.length > 0 && !prefersReducedMotion;
 
   const startAnimation = useCallback(() => {
     let lastTime: number | null = null;
@@ -45,14 +61,18 @@ function NewsLineImpl({ state, log }: Props) {
   }, []);
 
   useEffect(() => {
-    if (visibleEvents.length > 0) {
+    if (!tickerActive) {
+      // Reduced-motion 또는 이벤트 없음 → 정적 시작 위치로 복귀
       posRef.current = 0;
-      startAnimation();
+      if (tickerRef.current) tickerRef.current.style.transform = 'translateX(0px)';
+      return;
     }
+    posRef.current = 0;
+    startAnimation();
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [visibleEvents.length, startAnimation]);
+  }, [tickerActive, startAnimation]);
 
   const NewsContent = useMemo(() => {
     return visibleEvents.map((event, i) => (
@@ -99,12 +119,15 @@ function NewsLineImpl({ state, log }: Props) {
           overflow: 'hidden',
           marginLeft: '4px',
         }}>
+          {/* transform: scaleX → GPU 가속, layout thrash 회피. 턴당 1회 업데이트여도 compositor-only path가 정직 */}
           <div style={{
-            width: `${(state.day / state.maxDays) * 100}%`,
+            width: '100%',
             height: '100%',
             background: 'var(--accent-primary)',
             borderRadius: '2px',
-            transition: 'width 300ms ease',
+            transformOrigin: 'left center',
+            transform: `scaleX(${Math.min(state.day / state.maxDays, 1)})`,
+            transition: 'transform 300ms ease',
           }} />
         </div>
       </div>
@@ -159,7 +182,8 @@ function NewsLineImpl({ state, log }: Props) {
                   whiteSpace: 'nowrap',
                   fontSize: '12px',
                   color: 'var(--text-secondary)',
-                  willChange: 'transform',
+                  // willChange는 실제로 애니메이션이 돌 때만 — idle 상태에서 compositor layer를 붙잡지 않도록
+                  willChange: tickerActive ? 'transform' : 'auto',
                 }}
               >
                 <span>{NewsContent}</span>
