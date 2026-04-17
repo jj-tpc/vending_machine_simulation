@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { SimulationState, TurnLog, TurnResponse, StartResponse, ModelInfo, LlmVendor } from '@/simulation/types';
+import { SimulationState, TurnLog, TurnResponse, StartResponse, ModelInfo, LlmVendor, Difficulty } from '@/simulation/types';
 import { DEFAULT_AGENT_PROMPT } from '@/simulation/agent';
+import { DEFAULT_DIFFICULTY } from '@/simulation/difficulty';
 
 const DEFAULT_MODELS: Record<LlmVendor, ModelInfo[]> = {
   anthropic: [
@@ -55,6 +56,8 @@ interface UseSimulationReturn {
   setSelectedModel: (m: string) => void;
   agentPrompt: string;
   setAgentPrompt: (p: string) => void;
+  difficulty: Difficulty;
+  setDifficulty: (d: Difficulty) => void;
   // 액션
   startSimulation: (maxDays?: number, startDate?: string) => Promise<void>;
   nextTurn: () => Promise<void>;
@@ -115,6 +118,7 @@ export function useSimulation(): UseSimulationReturn {
   const [modelsLoading, setModelsLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL.anthropic);
   const [agentPrompt, setAgentPrompt] = useState(DEFAULT_AGENT_PROMPT);
+  const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY);
 
   // vendor 변경 시 모델 목록 및 기본 모델 갱신
   const setVendor = useCallback((v: LlmVendor) => {
@@ -168,7 +172,7 @@ export function useSimulation(): UseSimulationReturn {
       const res = await fetch('/api/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ maxDays, startDate }),
+        body: JSON.stringify({ maxDays, startDate, difficulty }),
       });
 
       if (!res.ok) {
@@ -183,7 +187,7 @@ export function useSimulation(): UseSimulationReturn {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [difficulty]);
 
   const nextTurn = useCallback(async () => {
     if (!state || finished) return;
@@ -362,6 +366,8 @@ export function useSimulation(): UseSimulationReturn {
     setSelectedModel,
     agentPrompt,
     setAgentPrompt,
+    difficulty,
+    setDifficulty,
     startSimulation,
     nextTurn,
     skipTurns,

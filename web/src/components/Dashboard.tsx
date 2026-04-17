@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSimulation } from '@/hooks/useSimulation';
+import { DIFFICULTY_CONFIGS } from '@/simulation/difficulty';
+import type { Difficulty } from '@/simulation/types';
 import ControlPanel from './ControlPanel';
 import VendingMachineView from './VendingMachineView';
 import FinancialPanel from './FinancialPanel';
@@ -33,6 +35,8 @@ export default function Dashboard() {
     setSelectedModel,
     agentPrompt,
     setAgentPrompt,
+    difficulty,
+    setDifficulty,
     startSimulation,
     nextTurn,
     skipTurns,
@@ -481,8 +485,30 @@ export default function Dashboard() {
                 상단 툴바에서 시뮬레이션 기간을 선택하세요.
               </p>
 
-              {/* Start date card */}
+              {/* Difficulty picker card */}
               <div className="card" style={{ marginTop: '24px', padding: '16px 20px', textAlign: 'left' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-tertiary)', fontWeight: 500, marginBottom: '8px' }}>
+                  난이도
+                </label>
+                <div className="segmented">
+                  {(['easy', 'normal', 'hard'] as const).map((d: Difficulty) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setDifficulty(d)}
+                      className={`segmented-item ${difficulty === d ? 'active' : ''}`}
+                    >
+                      {DIFFICULTY_CONFIGS[d].label}
+                    </button>
+                  ))}
+                </div>
+                <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '8px', lineHeight: 1.5 }}>
+                  {DIFFICULTY_CONFIGS[difficulty].description} · 시작 ${DIFFICULTY_CONFIGS[difficulty].startingBalance} · 일일 ${DIFFICULTY_CONFIGS[difficulty].dailyFee} · 파산 {DIFFICULTY_CONFIGS[difficulty].bankruptcyThreshold}일
+                </p>
+              </div>
+
+              {/* Start date card */}
+              <div className="card" style={{ marginTop: '12px', padding: '16px 20px', textAlign: 'left' }}>
                 <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-tertiary)', fontWeight: 500, marginBottom: '8px' }}>
                   시작 날짜
                 </label>

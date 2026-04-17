@@ -5,7 +5,7 @@ import { StartRequest, StartResponse } from '@/simulation/types';
 export async function POST(request: Request) {
   try {
     const body: StartRequest = await request.json();
-    const state = createInitialState(body.maxDays || 30, body.startDate);
+    const state = createInitialState(body.maxDays || 30, body.startDate, body.difficulty);
     const response: StartResponse = { state };
     return NextResponse.json(response);
   } catch (error) {
