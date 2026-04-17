@@ -203,9 +203,8 @@ export default function SettingsPanel({
               style={{
                 height: 'auto',
                 padding: '10px',
-                fontSize: '12px',
-                fontFamily: 'var(--font-mono)',
-                lineHeight: 1.5,
+                fontSize: '13px',
+                lineHeight: 1.55,
                 resize: 'vertical',
               }}
               placeholder="에이전트의 역할, 성격, 행동 패턴을 자유롭게 작성하세요..."

@@ -87,10 +87,10 @@ export default function NewsLine({ state, log }: Props) {
       {/* Day + Progress */}
       <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
         <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Day</span>
-        <span style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+        <span style={{ fontSize: '14px', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
           {state.day}
         </span>
-        <span style={{ fontSize: '12px', color: 'var(--text-quaternary)' }}>/ {state.maxDays}</span>
+        <span style={{ fontSize: '12px', color: 'var(--text-quaternary)', fontVariantNumeric: 'tabular-nums' }}>/ {state.maxDays}</span>
         <div style={{
           width: '60px',
           height: '4px',

@@ -72,10 +72,10 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex flex-col" style={{ background: 'var(--bg-primary)', height: '100vh', overflow: 'hidden' }}>
+    <div className="flex flex-col" style={{ background: 'var(--bg-primary)', height: '100vh', overflow: 'hidden', maxWidth: '1600px', margin: '0 auto', width: '100%' }}>
       {/* Top: Turn Interface */}
       <div className="toolbar sticky top-0 z-50 px-6 h-14 flex items-center gap-4">
-        <h1 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+        <h1 className="display" style={{ fontSize: '19px', color: 'var(--text-primary)' }}>
           Vending Machine Simulation
         </h1>
         <div className="flex-1" />
@@ -314,7 +314,7 @@ export default function Dashboard() {
               }}>
                 🏭
               </div>
-              <h2 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
+              <h2 className="display" style={{ fontSize: '34px', color: 'var(--text-primary)', marginBottom: '12px', lineHeight: 1.15 }}>
                 Vending Machine Simulation
               </h2>
               <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>

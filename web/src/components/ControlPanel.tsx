@@ -97,10 +97,10 @@ export default function ControlPanel({
 
             <div className="flex items-center gap-1.5" style={{ fontSize: '13px', flexShrink: 0 }}>
               <span style={{ color: 'var(--text-secondary)' }}>Day</span>
-              <span style={{ fontWeight: 700, fontSize: '16px', fontFamily: 'var(--font-mono)' }}>
+              <span style={{ fontWeight: 700, fontSize: '16px', fontVariantNumeric: 'tabular-nums' }}>
                 {state.day}
               </span>
-              <span style={{ color: 'var(--text-tertiary)' }}>/ {state.maxDays}</span>
+              <span style={{ color: 'var(--text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>/ {state.maxDays}</span>
             </div>
 
             <div style={{ width: '1px', height: '16px', background: 'var(--border-default)', margin: '0 4px' }} />

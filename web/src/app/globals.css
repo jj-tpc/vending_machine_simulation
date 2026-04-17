@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* 한국어 body용 — next/font로 로드되는 Latin body와 자연 합성 */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css");
 
 :root {
   /* Warm Light Theme - Anthropic Console inspired */
@@ -36,9 +38,17 @@
   --fill-light: rgba(0, 0, 0, 0.05);
   --fill-medium: rgba(0, 0, 0, 0.08);
 
-  /* Typography */
-  --font-system: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: "SF Mono", SFMono-Regular, ui-monospace, "Cascadia Code", "Consolas", monospace;
+  /* Typography — next/font(Hanken Grotesk / Hedvig Letters Serif / JetBrains Mono) + Pretendard (Korean) */
+  /* --font-body, --font-display, --font-mono는 layout.tsx의 next/font가 주입 */
+  --font-system:
+    var(--font-body, -apple-system),
+    "Pretendard Variable", "Pretendard",
+    "Apple SD Gothic Neo", "Malgun Gothic",
+    BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  --font-display:
+    var(--font-display, Georgia),
+    "Pretendard Variable", "Apple SD Gothic Neo",
+    "Malgun Gothic", serif;
 
   /* Sizing */
   --radius-sm: 4px;
@@ -71,8 +81,16 @@ body {
   font-family: var(--font-system);
   font-size: 14px;
   line-height: 1.5;
+  font-feature-settings: "ss01", "cv01", "cv11"; /* Hanken Grotesk 스타일 세트·숫자 정제 */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Display — hero 타이틀 전용 (희소 적용 원칙) */
+.display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
 /* Card */
