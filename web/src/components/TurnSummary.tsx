@@ -324,7 +324,11 @@ function HistoryBadge({
           fontSize: '11px',
           fontFamily: 'inherit',
           fontWeight: 500,
+          textDecoration: 'none',
+          transition: 'text-decoration var(--transition-fast)',
         }}
+        onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+        onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
       >
         최신({tailDay}일)으로 →
       </button>

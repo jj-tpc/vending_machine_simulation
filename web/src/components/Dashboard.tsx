@@ -142,13 +142,9 @@ export default function Dashboard() {
     }
   }, [finished]);
 
-  // Random start date (between 2020-01-01 and 2025-12-31)
-  const [startDate, setStartDate] = useState(() => {
-    const start = new Date(2020, 0, 1).getTime();
-    const end = new Date(2025, 11, 31).getTime();
-    const randomDate = new Date(start + Math.random() * (end - start));
-    return randomDate.toISOString().split('T')[0];
-  });
+  // 기본 시작일: 오늘 — mount마다 random이면 재현 불가능(교재용으로 부적합).
+  // 랜덤화는 welcome 화면의 명시적 "랜덤" 버튼으로만 수행.
+  const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0]);
   const selectedEmail = state?.emails.find(e => e.id === selectedEmailId) || null;
 
   const settingsPanel = (

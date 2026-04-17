@@ -128,14 +128,7 @@ export default function ControlPanel({
         )}
       </div>
 
-      {/* Spinner keyframes */}
-      {hasSteps && (
-        <style>{`
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
-      )}
+      {/* @keyframes spin은 globals.css에 centralize됨 (런타임 스타일 주입 회피) */}
 
       {/* Reset confirmation popup */}
       {showResetConfirm && (

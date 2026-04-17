@@ -24,7 +24,7 @@ function EmailPanelImpl({ state, selectedEmailId, onSelectEmail, onSwitchToEmail
   const displayEmails = tab === 'received' ? receivedEmails : sentEmails;
 
   return (
-    <div className="surface-rail p-3 flex flex-col" style={{ maxHeight: '500px' }}>
+    <div className="surface-rail p-3 flex flex-col" style={{ height: '100%' }}>
       <h3 className="section-heading" style={{ marginBottom: '8px' }}>
         Email & Orders
       </h3>

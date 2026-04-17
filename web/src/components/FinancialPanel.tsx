@@ -19,7 +19,7 @@ const REVENUE_COLOR = 'var(--accent-pink)';
 const CHART_MARGIN = { top: 4, right: 8, bottom: 8, left: -20 };
 // Y축은 $ 접두사로 통화 단위 명시, 소수점 생략하여 tick 가독성 확보
 const Y_TICK_FORMATTER = (v: number) => `$${v}`;
-const AXIS_LABEL_STYLE = { fill: 'var(--text-quaternary)', fontSize: 9, fontFamily: 'var(--font-mono)' } as const;
+const AXIS_LABEL_STYLE = { fill: 'var(--text-quaternary)', fontSize: 10, fontFamily: 'var(--font-mono)' } as const;
 const TOOLTIP_STYLE = {
   backgroundColor: 'var(--bg-card)',
   border: '1px solid var(--border-default)',
@@ -108,7 +108,8 @@ function FinancialPanelImpl({ state, logs }: Props) {
 function KpiRow({ label, value, color, last }: { label: string; value: string; color: string; last?: boolean }) {
   return (
     <div className="flex items-center justify-between" style={{
-      padding: '1px 12px',
+      // 1px vertical padding은 오탈자 → 6px로 정상화 (행 높이 ≈28px, 숫자/라벨 읽기 편함)
+      padding: '6px 12px',
       borderBottom: last ? 'none' : '1px solid var(--border-light)',
       background: 'var(--bg-card)',
     }}>

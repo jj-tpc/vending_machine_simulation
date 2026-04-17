@@ -337,6 +337,11 @@ body {
   background: rgba(0, 0, 0, 0.2);
 }
 
+/* 스피너 공통 — ControlPanel의 loadingSteps에 사용. 런타임 <style> 주입 회피 위해 centralize */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* 시뮬레이션 종료 ceremony — 일회성 dim 전환 (2.5s)
  * 종료 배너가 등장할 때 페이지를 잠깐 흐리게 만들었다가 복귀.
  * 반복 금지: React 측에서 재렌더 시 replay되지 않도록 마운트-언마운트로 제어. */
