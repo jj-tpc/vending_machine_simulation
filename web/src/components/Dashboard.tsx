@@ -339,8 +339,8 @@ export default function Dashboard() {
 
           {/* 3-column layout — 참조 레일 2개 + 센터 drill-down */}
           <div className="dashboard-columns flex flex-1 overflow-hidden">
-            {/* Left: Email */}
-            <div className="sidebar dashboard-left flex-shrink-0 overflow-y-auto p-3" style={{ width: '260px' }}>
+            {/* Left: Email — 레퍼런스 리스트, 240px */}
+            <div className="sidebar dashboard-left flex-shrink-0 overflow-y-auto p-3" style={{ width: '240px' }}>
               <EmailPanel
                 state={state}
                 selectedEmailId={selectedEmailId}
@@ -445,14 +445,18 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Right: Vending Machine + Finance */}
-            <div className="dashboard-right flex-shrink-0 overflow-y-auto p-3 space-y-3" style={{
-              width: '408px',
+            {/* Right: Finance(scorecard glance) + Vending Machine(blueprint).
+                340px — opinionated: 오늘의 결과값이 먼저, 도면은 아래. 패널 간 gap 20px으로 distinct reference 리듬 확보 */}
+            <div className="dashboard-right flex-shrink-0 overflow-y-auto p-3" style={{
+              width: '340px',
               borderLeft: '1px solid var(--border-light)',
               background: 'var(--bg-sidebar)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '20px',
             }}>
-              <VendingMachineView machine={state.machine} />
               <FinancialPanel state={state} logs={allLogs} />
+              <VendingMachineView machine={state.machine} />
             </div>
           </div>
         </div>
