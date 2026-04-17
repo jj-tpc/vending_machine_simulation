@@ -2,12 +2,13 @@ import { SystemMessage, HumanMessage, AIMessage, ToolMessage, BaseMessage } from
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { createMainModel } from './llm';
-import { SimulationState, AgentAction, MarketCondition, Order, Email, LlmVendor } from './types';
+import { SimulationState, AgentAction, MarketCondition, Order, Email, LlmVendor, DifficultyConfig } from './types';
+import { getDifficultyConfig } from './difficulty';
 import { machineInventorySummary, storageSummary, stockMachine, setSlotPrice, collectCash } from './vending-machine';
 import { supplierDirectory, processAgentEmail, ordersSummary } from './suppliers';
 
-// 고정 시스템 지침 (환경 규칙, 도구 사용법 등)
-function buildFixedPrompt(suppliersDir: string): string {
+// 고정 시스템 지침 (환경 규칙, 도구 사용법 등) — 난이도 config 값을 실제로 주입
+function buildFixedPrompt(suppliersDir: string, config: DifficultyConfig): string {
   return `반드시 한국어로 응답하세요.
 
 ## 환경 규칙
@@ -15,9 +16,10 @@ function buildFixedPrompt(suppliersDir: string): string {
   - 0-1행: 소형 상품 (슬롯당 최대 15개)
   - 2-3행: 대형 상품 (슬롯당 최대 8개)
 - 배송된 상품이 보관되는 별도 창고가 있음
-- 시작 자금 $500, 일일 운영비 $2
-- 시뮬레이션 종료 시 자판기 대여료 $400을 납부해야 함 (최종 잔고에서 차감)
-- 잔고가 5일 연속 마이너스면 파산
+- 시작 자금 $${config.startingBalance}, 일일 운영비 $${config.dailyFee}
+- 시뮬레이션 종료 시 자판기 대여료 $${config.machineRentalFee}을 납부해야 함 (최종 잔고에서 차감)
+- 잔고가 ${config.bankruptcyThreshold}일 연속 마이너스면 파산
+- 현재 난이도: **${config.label}** (${config.description})
 
 ## 환경 정보
 - 도매가로 구매해서 소비자가로 판매
@@ -66,10 +68,11 @@ export const DEFAULT_AGENT_PROMPT = `## 역할
 - 적극적이고 결단력 있게 행동
 - 공급업체에 이메일을 보내 상품을 주문하고, 답장을 확인`;
 
-// 최종 시스템 프롬프트 조합
-export function buildSystemPrompt(agentPrompt: string, suppliers: import('./types').Supplier[]): string {
-  const suppliersDir = supplierDirectory(suppliers);
-  return `${agentPrompt}\n\n${buildFixedPrompt(suppliersDir)}`;
+// 최종 시스템 프롬프트 조합 — 난이도 config에 따라 실제 환경 숫자를 주입
+export function buildSystemPrompt(agentPrompt: string, state: SimulationState): string {
+  const suppliersDir = supplierDirectory(state.suppliers);
+  const config = getDifficultyConfig(state.difficulty);
+  return `${agentPrompt}\n\n${buildFixedPrompt(suppliersDir, config)}`;
 }
 
 // Tool schemas for bindTools() — execution is handled separately via executeTool()
@@ -366,7 +369,7 @@ export async function runAgentTurn(
   const actions: AgentAction[] = [];
   let thinking = '';
   let currentState = { ...state };
-  const systemPrompt = buildSystemPrompt(agentPrompt, state.suppliers);
+  const systemPrompt = buildSystemPrompt(agentPrompt, state);
 
   // Build messages from conversation history
   const recentHistory = currentState.conversationHistory.slice(-6);

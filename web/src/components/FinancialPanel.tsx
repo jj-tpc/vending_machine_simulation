@@ -2,6 +2,8 @@
 
 import { memo, useMemo } from 'react';
 import { TurnLog, SimulationState } from '@/simulation/types';
+import { calculateNetWorth } from '@/simulation/net-worth';
+import { getDifficultyConfig } from '@/simulation/difficulty';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Label } from 'recharts';
 
 interface Props {
@@ -37,18 +39,26 @@ const TICK_STYLE = {
 } as const;
 
 function FinancialPanelImpl({ state, logs }: Props) {
-  // logs 레퍼런스 안정 시 재계산 생략
-  const { chartData, totalRevenue, totalUnitsSold, latestNetWorth } = useMemo(() => ({
-    chartData: logs.map(log => ({
-      day: log.day,
-      balance: Number(log.balanceAfter.toFixed(2)),
-      netWorth: Number(log.netWorth.toFixed(2)),
-      revenue: Number(log.sales.totalRevenue.toFixed(2)),
-    })),
-    totalRevenue: logs.reduce((s, l) => s + l.sales.totalRevenue, 0),
-    totalUnitsSold: logs.reduce((s, l) => s + l.sales.totalUnitsSold, 0),
-    latestNetWorth: logs.length > 0 ? logs[logs.length - 1].netWorth : 500,
-  }), [logs]);
+  // logs 레퍼런스 안정 시 재계산 생략.
+  // 첫 턴 전 fallback은 난이도별 초기 순자산(= startingBalance − machineRentalFee)을 사용.
+  // 순자산 >= 손익분기(= 초기 순자산) 여부로 KPI 색을 결정.
+  const { chartData, totalRevenue, totalUnitsSold, latestNetWorth, breakeven } = useMemo(() => {
+    const config = getDifficultyConfig(state.difficulty);
+    const initialNetWorth = calculateNetWorth(state); // 첫 턴 이전이면 state가 곧 초기 상태
+    const finalNetWorth = logs.length > 0 ? logs[logs.length - 1].netWorth : initialNetWorth;
+    return {
+      chartData: logs.map(log => ({
+        day: log.day,
+        balance: Number(log.balanceAfter.toFixed(2)),
+        netWorth: Number(log.netWorth.toFixed(2)),
+        revenue: Number(log.sales.totalRevenue.toFixed(2)),
+      })),
+      totalRevenue: logs.reduce((s, l) => s + l.sales.totalRevenue, 0),
+      totalUnitsSold: logs.reduce((s, l) => s + l.sales.totalUnitsSold, 0),
+      latestNetWorth: finalNetWorth,
+      breakeven: config.startingBalance - config.machineRentalFee,
+    };
+  }, [state, logs]);
 
   return (
     <div className="surface-rail p-3">
@@ -59,7 +69,7 @@ function FinancialPanelImpl({ state, logs }: Props) {
       {/* KPIs - 재무제표 스타일 — TurnSummary 히어로의 라벨 어휘(잔고/순자산/매출)와 정합 */}
       <div style={{ marginBottom: '14px', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
         <KpiRow label="현금 잔고" value={`$${state.balance.toFixed(2)}`} color={state.balance >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'} />
-        <KpiRow label="순자산" value={`$${latestNetWorth.toFixed(2)}`} color={latestNetWorth >= 500 ? 'var(--accent-green)' : 'var(--accent-orange)'} />
+        <KpiRow label="순자산" value={`$${latestNetWorth.toFixed(2)}`} color={latestNetWorth >= breakeven ? 'var(--accent-green)' : 'var(--accent-orange)'} />
         <KpiRow label="누적 매출" value={`$${totalRevenue.toFixed(2)}`} color="var(--text-primary)" />
         <KpiRow label="판매 수량" value={`${totalUnitsSold}개`} color="var(--text-primary)" last />
       </div>
