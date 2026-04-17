@@ -1,10 +1,23 @@
 'use client';
 
+import { memo, useMemo } from 'react';
 import { MachineSlot } from '@/simulation/types';
 
 interface Props {
   machine: MachineSlot[];
 }
+
+// Corner ticks 정적 스타일 — 매 렌더 재생성 방지
+const CORNER_TICK_BASE = {
+  position: 'absolute' as const,
+  width: '6px',
+  height: '6px',
+  borderColor: 'var(--text-quaternary)',
+};
+const CORNER_TICK_TL = { ...CORNER_TICK_BASE, top: '-1px', left: '-1px', borderTop: '1px solid', borderLeft: '1px solid' };
+const CORNER_TICK_TR = { ...CORNER_TICK_BASE, top: '-1px', right: '-1px', borderTop: '1px solid', borderRight: '1px solid' };
+const CORNER_TICK_BL = { ...CORNER_TICK_BASE, bottom: '-1px', left: '-1px', borderBottom: '1px solid', borderLeft: '1px solid' };
+const CORNER_TICK_BR = { ...CORNER_TICK_BASE, bottom: '-1px', right: '-1px', borderBottom: '1px solid', borderRight: '1px solid' };
 
 // 상품 고유색 — 실제 세계 제품 연상을 해치지 않게 개별 유지
 const PRODUCT_COLORS: Record<string, string> = {
@@ -42,10 +55,13 @@ function stockLevel(pct: number): 'full' | 'mid' | 'low' {
  * 기술 도면 스타일 자판기 시각화.
  * Small 2행 / Large 2행을 구획으로 분리, 각 셀은 [좌표·이름·fill bar·qty·price].
  */
-export default function VendingMachineView({ machine }: Props) {
-  // 데이터 네이티브 4×3 순회 (display remapping 버그 제거)
-  const rows = [0, 1, 2, 3].map(row =>
-    [0, 1, 2].map(col => machine.find(s => s.row === row && s.col === col)).filter((s): s is MachineSlot => !!s)
+function VendingMachineViewImpl({ machine }: Props) {
+  // 데이터 네이티브 4×3 순회 (machine 레퍼런스가 같으면 재계산 생략)
+  const rows = useMemo(
+    () => [0, 1, 2, 3].map(row =>
+      [0, 1, 2].map(col => machine.find(s => s.row === row && s.col === col)).filter((s): s is MachineSlot => !!s)
+    ),
+    [machine]
   );
 
   return (
@@ -252,20 +268,17 @@ function LegendBar({ level, label }: { level: 'full' | 'mid' | 'low'; label: str
   );
 }
 
-// 기술 도면 정통: 외곽 모서리에 작은 L 마크
+// 기술 도면 정통: 외곽 모서리에 작은 L 마크 (정적 스타일은 모듈 레벨에서 정의됨)
 function CornerTicks() {
-  const tickStyle = {
-    position: 'absolute' as const,
-    width: '6px',
-    height: '6px',
-    borderColor: 'var(--text-quaternary)',
-  };
   return (
     <>
-      <div style={{ ...tickStyle, top: '-1px', left: '-1px', borderTop: '1px solid', borderLeft: '1px solid' }} />
-      <div style={{ ...tickStyle, top: '-1px', right: '-1px', borderTop: '1px solid', borderRight: '1px solid' }} />
-      <div style={{ ...tickStyle, bottom: '-1px', left: '-1px', borderBottom: '1px solid', borderLeft: '1px solid' }} />
-      <div style={{ ...tickStyle, bottom: '-1px', right: '-1px', borderBottom: '1px solid', borderRight: '1px solid' }} />
+      <div style={CORNER_TICK_TL} />
+      <div style={CORNER_TICK_TR} />
+      <div style={CORNER_TICK_BL} />
+      <div style={CORNER_TICK_BR} />
     </>
   );
 }
+
+const VendingMachineView = memo(VendingMachineViewImpl);
+export default VendingMachineView;

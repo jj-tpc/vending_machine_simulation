@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { TurnLog, AgentAction } from '@/simulation/types';
 
 interface Props {
@@ -9,7 +9,7 @@ interface Props {
 
 const THINKING_PREVIEW_CHARS = 180;
 
-export default function AgentLog({ log }: Props) {
+function AgentLogImpl({ log }: Props) {
   if (!log) {
     return (
       <div className="card p-6 h-full flex items-center justify-center">
@@ -110,6 +110,9 @@ export default function AgentLog({ log }: Props) {
     </div>
   );
 }
+
+const AgentLog = memo(AgentLogImpl);
+export default AgentLog;
 
 // ---------- Thinking (collapsible) ----------
 

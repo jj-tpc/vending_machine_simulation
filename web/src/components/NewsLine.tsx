@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useEffect, useCallback } from 'react';
+import { memo, useMemo, useRef, useEffect, useCallback } from 'react';
 import { TurnLog, SimulationState } from '@/simulation/types';
 import { weatherLabel, seasonLabel, dayOfWeekLabel } from '@/simulation/market';
 
@@ -12,7 +12,7 @@ interface Props {
 // Speed: pixels per second (lower = slower)
 const TICKER_SPEED = 20;
 
-export default function NewsLine({ state, log }: Props) {
+function NewsLineImpl({ state, log }: Props) {
   const market = log?.market;
   const visibleEvents = state.marketEvents.filter(e => e.visible && e.expiresDay > state.day);
   const isWeekend = market && (market.dayOfWeek === 'sat' || market.dayOfWeek === 'sun');
@@ -178,6 +178,9 @@ export default function NewsLine({ state, log }: Props) {
     </div>
   );
 }
+
+const NewsLine = memo(NewsLineImpl);
+export default NewsLine;
 
 function Pill({ label, highlight }: { label: string; highlight?: boolean }) {
   return (

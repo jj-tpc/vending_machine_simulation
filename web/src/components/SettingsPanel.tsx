@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { ModelInfo, LlmVendor } from '@/simulation/types';
 import { DEFAULT_AGENT_PROMPT } from '@/simulation/agent';
 
@@ -24,7 +24,7 @@ interface Props {
   disabled: boolean;
 }
 
-export default function SettingsPanel({
+function SettingsPanelImpl({
   models,
   modelsLoading,
   selectedModel,
@@ -229,3 +229,6 @@ export default function SettingsPanel({
     </div>
   );
 }
+
+const SettingsPanel = memo(SettingsPanelImpl);
+export default SettingsPanel;

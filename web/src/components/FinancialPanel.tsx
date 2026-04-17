@@ -1,5 +1,6 @@
 'use client';
 
+import { memo, useMemo } from 'react';
 import { TurnLog, SimulationState } from '@/simulation/types';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -13,17 +14,30 @@ const NET_WORTH_COLOR = 'var(--accent-green)';
 const CASH_COLOR = 'var(--accent-blue)';
 const REVENUE_COLOR = 'var(--accent-pink)';
 
-export default function FinancialPanel({ state, logs }: Props) {
-  const chartData = logs.map(log => ({
-    day: log.day,
-    balance: Number(log.balanceAfter.toFixed(2)),
-    netWorth: Number(log.netWorth.toFixed(2)),
-    revenue: Number(log.sales.totalRevenue.toFixed(2)),
-  }));
+// 차트 여백·tooltip 스타일 정적 상수
+const CHART_MARGIN = { top: 4, right: 8, bottom: 0, left: -28 };
+const TOOLTIP_STYLE = {
+  backgroundColor: 'var(--bg-card)',
+  border: '1px solid var(--border-default)',
+  borderRadius: '8px',
+  fontSize: '11px',
+  color: 'var(--text-primary)',
+  boxShadow: 'var(--shadow-md)',
+};
 
-  const totalRevenue = logs.reduce((s, l) => s + l.sales.totalRevenue, 0);
-  const totalUnitsSold = logs.reduce((s, l) => s + l.sales.totalUnitsSold, 0);
-  const latestNetWorth = logs.length > 0 ? logs[logs.length - 1].netWorth : 500;
+function FinancialPanelImpl({ state, logs }: Props) {
+  // logs 레퍼런스 안정 시 재계산 생략
+  const { chartData, totalRevenue, totalUnitsSold, latestNetWorth } = useMemo(() => ({
+    chartData: logs.map(log => ({
+      day: log.day,
+      balance: Number(log.balanceAfter.toFixed(2)),
+      netWorth: Number(log.netWorth.toFixed(2)),
+      revenue: Number(log.sales.totalRevenue.toFixed(2)),
+    })),
+    totalRevenue: logs.reduce((s, l) => s + l.sales.totalRevenue, 0),
+    totalUnitsSold: logs.reduce((s, l) => s + l.sales.totalUnitsSold, 0),
+    latestNetWorth: logs.length > 0 ? logs[logs.length - 1].netWorth : 500,
+  }), [logs]);
 
   return (
     <div className="surface-rail p-3">
@@ -49,7 +63,7 @@ export default function FinancialPanel({ state, logs }: Props) {
           </div>
           <div style={{ height: '140px' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -28 }}>
+              <LineChart data={chartData} margin={CHART_MARGIN}>
                 <XAxis
                   dataKey="day"
                   stroke="var(--text-quaternary)"
@@ -64,16 +78,7 @@ export default function FinancialPanel({ state, logs }: Props) {
                   axisLine={false}
                   width={40}
                 />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'var(--bg-card)',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: '8px',
-                    fontSize: '11px',
-                    color: 'var(--text-primary)',
-                    boxShadow: 'var(--shadow-md)',
-                  }}
-                />
+                <Tooltip contentStyle={TOOLTIP_STYLE} />
                 <Line type="monotone" dataKey="netWorth" stroke={NET_WORTH_COLOR} strokeWidth={2.25} dot={false} name="Net Worth" />
                 <Line type="monotone" dataKey="balance" stroke={CASH_COLOR} strokeWidth={1.25} strokeOpacity={0.7} dot={false} name="Cash" />
                 <Line type="monotone" dataKey="revenue" stroke={REVENUE_COLOR} strokeWidth={1} strokeOpacity={0.55} dot={false} name="Daily Revenue" />
@@ -116,3 +121,6 @@ function Dot({ color, label, primary }: { color: string; label: string; primary?
     </span>
   );
 }
+
+const FinancialPanel = memo(FinancialPanelImpl);
+export default FinancialPanel;

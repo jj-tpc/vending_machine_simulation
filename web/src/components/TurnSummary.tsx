@@ -1,5 +1,6 @@
 'use client';
 
+import { memo, useMemo } from 'react';
 import { TurnLog } from '@/simulation/types';
 
 interface Props {
@@ -13,7 +14,22 @@ interface Props {
  * 턴 요약 히어로. 평등한 3-column 위에 두어 "이번 턴의 주인공 정보"를 선명히.
  * centered big-number hero 패턴 회피 — 좌측 정렬 logbook 스타일.
  */
-export default function TurnSummary({ log, allLogs, finished, finishReason }: Props) {
+function TurnSummaryImpl({ log, allLogs, finished, finishReason }: Props) {
+  // Hook은 조건부 return 이전에 호출해야 함 (rules-of-hooks)
+  const { previousLog, salesDelta, salesDeltaPct, balanceDelta, netWorthDelta } = useMemo(() => {
+    if (!log) return { previousLog: null, salesDelta: null, salesDeltaPct: null, balanceDelta: null, netWorthDelta: null };
+    const prev = allLogs.length >= 2 ? allLogs[allLogs.length - 2] : null;
+    return {
+      previousLog: prev,
+      salesDelta: prev ? log.sales.totalRevenue - prev.sales.totalRevenue : null,
+      salesDeltaPct: prev && prev.sales.totalRevenue > 0
+        ? ((log.sales.totalRevenue - prev.sales.totalRevenue) / prev.sales.totalRevenue) * 100
+        : null,
+      balanceDelta: prev ? log.balanceAfter - prev.balanceAfter : null,
+      netWorthDelta: prev ? log.netWorth - prev.netWorth : null,
+    };
+  }, [log, allLogs]);
+
   if (!log) {
     return (
       <div style={{
@@ -26,21 +42,6 @@ export default function TurnSummary({ log, allLogs, finished, finishReason }: Pr
       </div>
     );
   }
-
-  const previousLog = allLogs.length >= 2 ? allLogs[allLogs.length - 2] : null;
-
-  const salesDelta = previousLog
-    ? log.sales.totalRevenue - previousLog.sales.totalRevenue
-    : null;
-  const salesDeltaPct = previousLog && previousLog.sales.totalRevenue > 0
-    ? ((log.sales.totalRevenue - previousLog.sales.totalRevenue) / previousLog.sales.totalRevenue) * 100
-    : null;
-  const balanceDelta = previousLog
-    ? log.balanceAfter - previousLog.balanceAfter
-    : null;
-  const netWorthDelta = previousLog
-    ? log.netWorth - previousLog.netWorth
-    : null;
 
   return (
     <div style={{
@@ -201,6 +202,9 @@ function StatusBanner({ bankrupt }: { bankrupt: boolean }) {
     </div>
   );
 }
+
+const TurnSummary = memo(TurnSummaryImpl);
+export default TurnSummary;
 
 function WarningStripe({ count }: { count: number }) {
   return (

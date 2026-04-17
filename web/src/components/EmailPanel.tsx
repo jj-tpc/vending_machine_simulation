@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { SimulationState, Email } from '@/simulation/types';
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
 
 type TabType = 'received' | 'sent';
 
-export default function EmailPanel({ state, selectedEmailId, onSelectEmail, onSwitchToEmailTab }: Props) {
+function EmailPanelImpl({ state, selectedEmailId, onSelectEmail, onSwitchToEmailTab }: Props) {
   const [tab, setTab] = useState<TabType>('received');
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
@@ -175,6 +175,9 @@ export default function EmailPanel({ state, selectedEmailId, onSelectEmail, onSw
     </div>
   );
 }
+
+const EmailPanel = memo(EmailPanelImpl);
+export default EmailPanel;
 
 function EmailRow({ email, isSelected, onClick }: { email: Email; isSelected: boolean; onClick: () => void }) {
   const isSent = email.type === 'sent';
