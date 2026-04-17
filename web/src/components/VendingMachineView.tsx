@@ -110,11 +110,11 @@ function VendingMachineViewImpl({ machine }: Props) {
         </div>
       </div>
 
-      {/* 범례 */}
+      {/* 범례 — low 레벨 swatch는 실제 셀과 동일한 빨간 트랙으로 렌더하여 재고 부족 신호를 명시 */}
       <div className="flex items-center gap-3" style={{ marginTop: '8px', fontSize: '10px', color: 'var(--text-tertiary)' }}>
         <LegendBar level="full" label="재고 충분" />
         <LegendBar level="mid" label="보통" />
-        <LegendBar level="low" label="부족" />
+        <LegendBar level="low" label="부족 — 주문 필요" />
       </div>
     </div>
   );
@@ -257,16 +257,29 @@ function FillBar({ pct, color, level }: { pct: number; color: string; level: 'fu
 
 function LegendBar({ level, label }: { level: 'full' | 'mid' | 'low'; label: string }) {
   const opacity = level === 'full' ? 0.85 : level === 'mid' ? 0.65 : 0.45;
+  // low 레벨은 track(빨간 surface-alert) + 부분 fill 조합으로 렌더 → 실제 셀과 신호 체계 일치
+  const isLow = level === 'low';
   return (
     <span className="flex items-center gap-1">
       <span style={{
-        width: '12px',
+        position: 'relative',
+        width: '14px',
         height: '3px',
-        background: 'var(--accent-primary)',
-        opacity,
+        background: isLow ? 'var(--surface-alert)' : 'var(--border-light)',
         borderRadius: '1.5px',
         display: 'inline-block',
-      }} />
+        overflow: 'hidden',
+      }}>
+        <span style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: isLow ? '30%' : '100%',
+          background: 'var(--accent-primary)',
+          opacity,
+        }} />
+      </span>
       <span>{label}</span>
     </span>
   );

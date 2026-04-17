@@ -46,12 +46,12 @@ export default function ControlPanel({
       <div className="flex items-center gap-2">
         {notStarted ? (
           <>
-            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Duration:</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>기간</span>
             <button onClick={() => onStart(15, startDate)} disabled={isLoading} className="btn btn-secondary">
-              15 Days
+              15일
             </button>
             <button onClick={() => onStart(30, startDate)} disabled={isLoading} className="btn btn-secondary">
-              30 Days
+              30일
             </button>
           </>
         ) : (
@@ -96,11 +96,10 @@ export default function ControlPanel({
             )}
 
             <div className="flex items-center gap-1.5" style={{ fontSize: '13px', flexShrink: 0 }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Day</span>
               <span style={{ fontWeight: 700, fontSize: '16px', fontVariantNumeric: 'tabular-nums' }}>
                 {state.day}
               </span>
-              <span style={{ color: 'var(--text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>/ {state.maxDays}</span>
+              <span style={{ color: 'var(--text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>/ {state.maxDays}일</span>
             </div>
 
             <div style={{ width: '1px', height: '16px', background: 'var(--border-default)', margin: '0 4px' }} />
@@ -113,10 +112,10 @@ export default function ControlPanel({
                   fontSize: '12px',
                   padding: '3px 10px',
                 }}>
-                  {finishReason === 'bankrupt' ? 'BANKRUPT' : 'COMPLETE'}
+                  {finishReason === 'bankrupt' ? '파산' : '완료'}
                 </span>
                 <button onClick={() => setShowResetConfirm(true)} className="btn btn-secondary" style={{ color: 'var(--accent-red)' }}>
-                  Reset
+                  리셋
                 </button>
               </>
             ) : (
@@ -126,10 +125,10 @@ export default function ControlPanel({
                   disabled={isLoading}
                   className="btn btn-primary"
                 >
-                  {isLoading ? 'Processing...' : 'Next Turn'}
+                  {isLoading ? '처리 중…' : '다음 턴'}
                 </button>
                 <button onClick={() => setShowResetConfirm(true)} disabled={isLoading} className="btn btn-ghost">
-                  Reset
+                  리셋
                 </button>
               </>
             )}

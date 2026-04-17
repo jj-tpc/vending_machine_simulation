@@ -196,7 +196,7 @@ function NewsLineImpl({ state, log }: Props) {
 
       {!market && (
         <span style={{ fontSize: '12px', color: 'var(--text-quaternary)' }}>
-          Waiting for simulation...
+          시뮬레이션 대기 중…
         </span>
       )}
     </div>

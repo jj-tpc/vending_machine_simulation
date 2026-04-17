@@ -9,12 +9,24 @@ interface Props {
 
 const THINKING_PREVIEW_CHARS = 180;
 
+// 에이전트 도구 glossary — 배지 hover 시 한국어 설명 제공 (ActionRow의 title 속성에 사용)
+const TOOL_GLOSSARY: Record<string, string> = {
+  check_balance: '잔고 확인 — 보유 현금 + 자판기 미수거 현금',
+  get_machine_inventory: '자판기 재고 확인 — 12슬롯 상품/수량/가격',
+  get_storage_inventory: '창고 재고 확인 — 자판기에 넣을 수 있는 재고',
+  send_email: '이메일 발송 — 공급업체 상품 문의·주문',
+  read_inbox: '수신함 확인 — 공급업체 답장·배송 알림',
+  stock_machine: '자판기 재입고 — 창고 상품을 슬롯에 투입',
+  set_price: '가격 변경 — 특정 슬롯 판매가 조정',
+  collect_cash: '매출 수거 — 자판기에 쌓인 판매금 회수',
+};
+
 function AgentLogImpl({ log }: Props) {
   if (!log) {
     return (
       <div className="card p-6 h-full flex items-center justify-center">
         <p style={{ fontSize: '14px', color: 'var(--text-tertiary)' }}>
-          Start the simulation to see agent actions.
+          시뮬레이션을 시작하면 에이전트 행동이 여기에 표시됩니다.
         </p>
       </div>
     );
@@ -25,7 +37,7 @@ function AgentLogImpl({ log }: Props) {
       {/* Section-heading 컨벤션으로 통합 — 모듈 라벨 (11px upper) + 날짜를 mono 보조 요소로 */}
       <div className="flex items-baseline gap-3" style={{ marginBottom: '16px' }}>
         <h3 className="section-heading">
-          Agent Log
+          에이전트 로그
         </h3>
         <span style={{
           fontSize: '11px',
@@ -33,7 +45,7 @@ function AgentLogImpl({ log }: Props) {
           fontVariantNumeric: 'tabular-nums',
           color: 'var(--text-quaternary)',
         }}>
-          Day {log.day}
+          {log.day}일차
         </span>
       </div>
 
@@ -66,7 +78,7 @@ function AgentLogImpl({ log }: Props) {
       {log.agentActions.length > 0 && (
         <div style={{ marginBottom: '16px' }}>
           <div className="section-heading" style={{ marginBottom: '6px', color: 'var(--accent-green)' }}>
-            Actions ({log.agentActions.length})
+            행동 ({log.agentActions.length})
           </div>
           <div className="space-y-1">
             {log.agentActions.map((action, i) => (
@@ -79,7 +91,7 @@ function AgentLogImpl({ log }: Props) {
       {/* Sales */}
       <div>
         <div className="section-heading" style={{ marginBottom: '6px', color: 'var(--accent-orange)' }}>
-          Sales
+          매출
         </div>
         {log.sales.items.length > 0 ? (
           <div style={{
@@ -103,14 +115,14 @@ function AgentLogImpl({ log }: Props) {
               fontSize: '13px',
               fontWeight: 600,
             }}>
-              <span style={{ color: 'var(--text-tertiary)' }}>{log.sales.totalUnitsSold} units</span>
+              <span style={{ color: 'var(--text-tertiary)' }}>{log.sales.totalUnitsSold}개 판매</span>
               <span style={{ color: 'var(--accent-green)', fontFamily: 'var(--font-mono)' }}>
                 ${log.sales.totalRevenue.toFixed(2)}
               </span>
             </div>
           </div>
         ) : (
-          <div style={{ fontSize: '13px', color: 'var(--text-quaternary)' }}>No sales today.</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-quaternary)' }}>오늘은 판매가 없습니다</div>
         )}
       </div>
     </div>
@@ -172,6 +184,7 @@ function ActionRow({ action }: { action: AgentAction }) {
   const inputSummary = summarizeInput(action.input);
   const resultIsLong = action.result.length > 80;
   const collapsedResult = resultIsLong ? action.result.slice(0, 80).trimEnd() + '…' : action.result;
+  const toolDescription = TOOL_GLOSSARY[action.tool];
 
   return (
     <button
@@ -190,12 +203,17 @@ function ActionRow({ action }: { action: AgentAction }) {
       }}
     >
       <div className="flex items-center gap-2" style={{ marginBottom: expanded || !resultIsLong ? '4px' : 0 }}>
-        <span className="badge" style={{
-          background: 'rgba(74, 127, 186, 0.1)',
-          color: 'var(--accent-blue)',
-          fontFamily: 'var(--font-mono)',
-          fontSize: '11px',
-        }}>
+        <span
+          className="badge"
+          title={toolDescription}
+          style={{
+            background: 'rgba(74, 127, 186, 0.1)',
+            color: 'var(--accent-blue)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '11px',
+            cursor: toolDescription ? 'help' : undefined,
+          }}
+        >
           {action.tool}
         </span>
         {inputSummary && (

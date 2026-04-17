@@ -60,6 +60,7 @@ interface UseSimulationReturn {
   nextTurn: () => Promise<void>;
   skipTurns: (count: number) => Promise<void>;
   reset: () => void;
+  clearError: () => void;
 }
 
 export { DEFAULT_AGENT_PROMPT };
@@ -340,6 +341,8 @@ export function useSimulation(): UseSimulationReturn {
     setFinishReason(null);
   }, []);
 
+  const clearError = useCallback(() => setError(null), []);
+
   return {
     state,
     currentLog,
@@ -363,5 +366,6 @@ export function useSimulation(): UseSimulationReturn {
     nextTurn,
     skipTurns,
     reset,
+    clearError,
   };
 }

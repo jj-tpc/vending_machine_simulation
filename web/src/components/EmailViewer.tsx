@@ -59,7 +59,7 @@ export default function EmailViewer({ email }: Props) {
 
         <div className="space-y-1">
           <div className="flex items-center gap-2" style={{ fontSize: '13px' }}>
-            <span style={{ color: 'var(--text-tertiary)', width: '32px', flexShrink: 0 }}>From</span>
+            <span style={{ color: 'var(--text-tertiary)', width: '44px', flexShrink: 0 }}>보낸이</span>
             <span style={{
               fontFamily: 'var(--font-mono)',
               fontSize: '12px',
@@ -69,7 +69,7 @@ export default function EmailViewer({ email }: Props) {
             </span>
           </div>
           <div className="flex items-center gap-2" style={{ fontSize: '13px' }}>
-            <span style={{ color: 'var(--text-tertiary)', width: '32px', flexShrink: 0 }}>To</span>
+            <span style={{ color: 'var(--text-tertiary)', width: '44px', flexShrink: 0 }}>받는이</span>
             <span style={{
               fontFamily: 'var(--font-mono)',
               fontSize: '12px',

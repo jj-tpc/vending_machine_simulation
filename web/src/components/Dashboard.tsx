@@ -36,6 +36,7 @@ export default function Dashboard() {
     nextTurn,
     skipTurns,
     reset,
+    clearError,
   } = useSimulation();
 
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
@@ -95,16 +96,41 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Error */}
+      {/* Error — 닫기 가능, 원문 메시지는 기술적일 수 있으므로 "오류 —" 접두로 맥락 부여 */}
       {error && (
-        <div className="mx-6 mt-3 px-4 py-2.5" style={{
-          background: 'var(--surface-alert)',
-          border: '1px solid var(--surface-alert-border)',
-          borderRadius: 'var(--radius-md)',
-          color: 'var(--surface-alert-text)',
-          fontSize: '13px',
-        }}>
-          {error}
+        <div
+          className="mx-6 mt-3 px-4 py-2.5 flex items-start gap-3"
+          role="alert"
+          style={{
+            background: 'var(--surface-alert)',
+            border: '1px solid var(--surface-alert-border)',
+            borderRadius: 'var(--radius-md)',
+            color: 'var(--surface-alert-text)',
+            fontSize: '13px',
+          }}
+        >
+          <div style={{ flex: 1, lineHeight: 1.5 }}>
+            <span style={{ fontWeight: 700, marginRight: '6px' }}>오류</span>
+            <span>{error}</span>
+          </div>
+          <button
+            type="button"
+            onClick={clearError}
+            aria-label="오류 메시지 닫기"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--surface-alert-text)',
+              cursor: 'pointer',
+              padding: '0 4px',
+              fontSize: '16px',
+              lineHeight: 1,
+              opacity: 0.7,
+              flexShrink: 0,
+            }}
+          >
+            &times;
+          </button>
         </div>
       )}
 
@@ -140,7 +166,7 @@ export default function Dashboard() {
               padding: '12px 16px',
               borderBottom: '1px solid var(--border-light)',
             }}>
-              <span style={{ fontSize: '14px', fontWeight: 600 }}>Settings</span>
+              <span style={{ fontSize: '14px', fontWeight: 600 }}>설정</span>
               <button
                 onClick={() => setShowSettings(false)}
                 style={{
@@ -204,9 +230,9 @@ export default function Dashboard() {
                 flexShrink: 0,
               }}>
                 {([
-                  { key: 'agent', label: 'Agent Log' },
-                  { key: 'email', label: 'Email' },
-                  { key: 'settings', label: 'Settings' },
+                  { key: 'agent', label: '에이전트 로그' },
+                  { key: 'email', label: '이메일' },
+                  { key: 'settings', label: '설정' },
                 ] as const).map(tab => (
                   <button
                     key={tab.key}

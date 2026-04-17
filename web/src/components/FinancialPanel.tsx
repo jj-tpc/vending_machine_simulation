@@ -2,7 +2,7 @@
 
 import { memo, useMemo } from 'react';
 import { TurnLog, SimulationState } from '@/simulation/types';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Label } from 'recharts';
 
 interface Props {
   state: SimulationState;
@@ -15,7 +15,11 @@ const CASH_COLOR = 'var(--accent-blue)';
 const REVENUE_COLOR = 'var(--accent-pink)';
 
 // 차트 여백·tooltip·tick 스타일 정적 상수 — Hanken/JetBrains 시스템에 정합
-const CHART_MARGIN = { top: 4, right: 8, bottom: 0, left: -28 };
+// bottom 여백: X축 라벨("Day") 표시 공간 확보
+const CHART_MARGIN = { top: 4, right: 8, bottom: 8, left: -20 };
+// Y축은 $ 접두사로 통화 단위 명시, 소수점 생략하여 tick 가독성 확보
+const Y_TICK_FORMATTER = (v: number) => `$${v}`;
+const AXIS_LABEL_STYLE = { fill: 'var(--text-quaternary)', fontSize: 9, fontFamily: 'var(--font-mono)' } as const;
 const TOOLTIP_STYLE = {
   backgroundColor: 'var(--bg-card)',
   border: '1px solid var(--border-default)',
@@ -49,24 +53,24 @@ function FinancialPanelImpl({ state, logs }: Props) {
   return (
     <div className="surface-rail p-3">
       <h3 className="section-heading" style={{ marginBottom: '10px' }}>
-        Financials
+        재무 현황
       </h3>
 
-      {/* KPIs - 재무제표 스타일 */}
+      {/* KPIs - 재무제표 스타일 — TurnSummary 히어로의 라벨 어휘(잔고/순자산/매출)와 정합 */}
       <div style={{ marginBottom: '14px', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-        <KpiRow label="Cash Balance" value={`$${state.balance.toFixed(2)}`} color={state.balance >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'} />
-        <KpiRow label="Net Worth" value={`$${latestNetWorth.toFixed(2)}`} color={latestNetWorth >= 500 ? 'var(--accent-green)' : 'var(--accent-orange)'} />
-        <KpiRow label="Total Revenue" value={`$${totalRevenue.toFixed(2)}`} color="var(--text-primary)" />
-        <KpiRow label="Units Sold" value={`${totalUnitsSold}`} color="var(--text-primary)" last />
+        <KpiRow label="현금 잔고" value={`$${state.balance.toFixed(2)}`} color={state.balance >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'} />
+        <KpiRow label="순자산" value={`$${latestNetWorth.toFixed(2)}`} color={latestNetWorth >= 500 ? 'var(--accent-green)' : 'var(--accent-orange)'} />
+        <KpiRow label="누적 매출" value={`$${totalRevenue.toFixed(2)}`} color="var(--text-primary)" />
+        <KpiRow label="판매 수량" value={`${totalUnitsSold}개`} color="var(--text-primary)" last />
       </div>
 
       {/* Chart — 인라인 범례, 위계 있는 stroke */}
       {chartData.length > 0 && (
         <div>
           <div className="flex items-center gap-3" style={{ marginBottom: '6px', fontSize: '10px' }}>
-            <Dot color={NET_WORTH_COLOR} label="Net Worth" primary />
-            <Dot color={CASH_COLOR} label="Cash" />
-            <Dot color={REVENUE_COLOR} label="Revenue" />
+            <Dot color={NET_WORTH_COLOR} label="순자산" primary />
+            <Dot color={CASH_COLOR} label="잔고" />
+            <Dot color={REVENUE_COLOR} label="일 매출" />
           </div>
           <div style={{ height: '140px' }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -77,13 +81,16 @@ function FinancialPanelImpl({ state, logs }: Props) {
                   tick={TICK_STYLE}
                   tickLine={false}
                   axisLine={false}
-                />
+                >
+                  <Label value="일차" position="insideBottomRight" offset={-2} style={AXIS_LABEL_STYLE} />
+                </XAxis>
                 <YAxis
                   stroke="var(--text-quaternary)"
                   tick={TICK_STYLE}
+                  tickFormatter={Y_TICK_FORMATTER}
                   tickLine={false}
                   axisLine={false}
-                  width={40}
+                  width={48}
                 />
                 <Tooltip contentStyle={TOOLTIP_STYLE} />
                 <Line type="monotone" dataKey="netWorth" stroke={NET_WORTH_COLOR} strokeWidth={2.25} dot={false} name="Net Worth" />
