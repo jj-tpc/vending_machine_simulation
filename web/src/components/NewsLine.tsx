@@ -111,16 +111,17 @@ export default function NewsLine({ state, log }: Props) {
 
       <div style={{ width: '1px', height: '16px', background: 'var(--border-default)' }} />
 
-      {/* Market info pills */}
+      {/* Market info — 날짜·요일 한 pill, 날씨·계절 한 pill */}
       {market && (
         <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
-          <Pill label={market.date} />
-          <Pill label={dayOfWeekLabel(market.dayOfWeek)} highlight={isWeekend} />
-          <Pill label={weatherLabel(market.weather)} />
-          <Pill label={seasonLabel(market.season)} />
+          <Pill
+            label={`${market.date} (${dayOfWeekLabel(market.dayOfWeek)})`}
+            highlight={isWeekend}
+          />
+          <Pill label={`${weatherLabel(market.weather)} · ${seasonLabel(market.season)}`} />
           {isWeekend && (
             <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--accent-orange)' }}>
-              Weekend +30%
+              주말 +30%
             </span>
           )}
         </div>
