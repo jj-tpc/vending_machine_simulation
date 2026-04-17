@@ -317,6 +317,25 @@ export function generateMorningReport(
     parts.push(ordersSummary(state.orders, state.day));
   }
 
+  // 오늘 발생한 즉시 효과 (재고 손실·일회성 비용) — 에이전트가 놓치지 않도록 별도 섹션
+  const todayInstantEvents = state.marketEvents.filter(e => e.day === state.day && e.effects.instantEffects);
+  if (todayInstantEvents.length > 0) {
+    parts.push('\n--- 오늘 발생한 사건 ---');
+    for (const ev of todayInstantEvents) {
+      const inst = ev.effects.instantEffects!;
+      if (inst.stockLoss) {
+        const sl = inst.stockLoss;
+        const amount = sl.percentage ? `${Math.round(sl.percentage * 100)}%` : `${sl.fixedUnits}개`;
+        const where = sl.target === 'storage' ? '창고' : sl.target === 'machine' ? '자판기' : '창고·자판기';
+        const cat = sl.categoryFilter && sl.categoryFilter !== 'all' ? ` ${sl.categoryFilter}` : '';
+        parts.push(`⚠ ${ev.headline}: ${where}${cat} 재고 ${amount} 손실 (${sl.reason || '사건'})`);
+      }
+      if (inst.oneTimeFee) {
+        parts.push(`⚠ ${ev.headline}: $${inst.oneTimeFee.amount.toFixed(2)} 즉시 차감 (${inst.oneTimeFee.reason})`);
+      }
+    }
+  }
+
   // 공개 시장 뉴스
   const visibleEvents = state.marketEvents.filter(e => e.visible && e.expiresDay > state.day);
   if (visibleEvents.length > 0) {
