@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSimulation } from '@/hooks/useSimulation';
 import ControlPanel from './ControlPanel';
 import VendingMachineView from './VendingMachineView';
@@ -11,6 +11,7 @@ import EmailPanel from './EmailPanel';
 import EmailViewer from './EmailViewer';
 import SettingsPanel from './SettingsPanel';
 import TurnSummary from './TurnSummary';
+import FinishBanner from './FinishBanner';
 
 export default function Dashboard() {
   const {
@@ -42,6 +43,21 @@ export default function Dashboard() {
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [centerTab, setCenterTab] = useState<'agent' | 'email' | 'settings'>('agent');
+
+  // 종료 ceremony: finished가 false → true로 뒤집힐 때 일회성 dim overlay를 재생
+  const [dimActive, setDimActive] = useState(false);
+  const dimPlayedForFinishRef = useRef(false);
+  useEffect(() => {
+    if (finished && !dimPlayedForFinishRef.current) {
+      dimPlayedForFinishRef.current = true;
+      setDimActive(true);
+    }
+    if (!finished) {
+      // 리셋 시 다음 ceremony를 위해 플래그 복원
+      dimPlayedForFinishRef.current = false;
+      setDimActive(false);
+    }
+  }, [finished]);
 
   // Random start date (between 2020-01-01 and 2025-12-31)
   const [startDate, setStartDate] = useState(() => {
@@ -195,6 +211,25 @@ export default function Dashboard() {
 
       {state ? (
         <div className="flex flex-col flex-1 overflow-hidden">
+          {/* 종료 ceremony — finished일 때만 3-column 위에 full-width 배너 */}
+          {finished && (
+            <FinishBanner
+              bankrupt={finishReason === 'bankrupt'}
+              maxDays={state.maxDays}
+              logs={allLogs}
+              onReset={handleReset}
+            />
+          )}
+
+          {/* 일회성 dim overlay — animation 종료 시 자동 언마운트 */}
+          {dimActive && (
+            <div
+              className="finish-dim-overlay"
+              aria-hidden="true"
+              onAnimationEnd={() => setDimActive(false)}
+            />
+          )}
+
           {/* News Line — 시장 컨텍스트 */}
           <NewsLine state={state} log={currentLog} />
 
@@ -203,7 +238,6 @@ export default function Dashboard() {
             log={currentLog}
             allLogs={allLogs}
             finished={finished}
-            finishReason={finishReason}
             onInspectWarnings={() => setCenterTab('agent')}
           />
 

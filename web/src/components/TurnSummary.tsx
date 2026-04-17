@@ -8,7 +8,6 @@ interface Props {
   log: TurnLog | null;
   allLogs: TurnLog[];
   finished: boolean;
-  finishReason: string | null;
   /** WarningStripe 클릭 시 호출 (Dashboard에서 Agent 탭으로 전환) */
   onInspectWarnings?: () => void;
 }
@@ -17,7 +16,7 @@ interface Props {
  * 턴 요약 히어로. 평등한 3-column 위에 두어 "이번 턴의 주인공 정보"를 선명히.
  * centered big-number hero 패턴 회피 — 좌측 정렬 logbook 스타일.
  */
-function TurnSummaryImpl({ log, allLogs, finished, finishReason, onInspectWarnings }: Props) {
+function TurnSummaryImpl({ log, allLogs, finished, onInspectWarnings }: Props) {
   // Hook은 조건부 return 이전에 호출해야 함 (rules-of-hooks)
   const { previousLog, salesDelta, salesDeltaPct, balanceDelta, netWorthDelta } = useMemo(() => {
     if (!log) return { previousLog: null, salesDelta: null, salesDeltaPct: null, balanceDelta: null, netWorthDelta: null };
@@ -53,10 +52,7 @@ function TurnSummaryImpl({ log, allLogs, finished, finishReason, onInspectWarnin
       background: 'var(--bg-card)',
       flexShrink: 0,
     }}>
-      {/* Critical status banner */}
-      {finished && (
-        <StatusBanner bankrupt={finishReason === 'bankrupt'} />
-      )}
+      {/* 종료 상태는 상단 FinishBanner(ceremony)가 담당 — 여기선 경고 스트라이프만 */}
       {!finished && log.warnings && log.warnings.length > 0 && (
         <WarningStripe count={log.warnings.length} onInspect={onInspectWarnings} />
       )}
@@ -196,27 +192,6 @@ function Metric({ label, value, delta, deltaHint, deltaPositive, suffix, primary
   );
 }
 
-function StatusBanner({ bankrupt }: { bankrupt: boolean }) {
-  return (
-    <div style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: '6px',
-      padding: '4px 10px',
-      background: bankrupt ? 'var(--surface-alert)' : 'var(--surface-pending)',
-      border: `1px solid ${bankrupt ? 'var(--surface-alert-border)' : 'var(--surface-pending-border)'}`,
-      borderRadius: 'var(--radius-sm)',
-      fontSize: '11px',
-      fontWeight: 700,
-      color: bankrupt ? 'var(--surface-alert-text)' : 'var(--surface-pending-text)',
-      textTransform: 'uppercase',
-      letterSpacing: '0.06em',
-      marginBottom: '10px',
-    }}>
-      {bankrupt ? '파산 — 시뮬레이션 종료' : '시뮬레이션 완료'}
-    </div>
-  );
-}
 
 const TurnSummary = memo(TurnSummaryImpl);
 export default TurnSummary;
