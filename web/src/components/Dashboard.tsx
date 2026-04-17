@@ -10,6 +10,7 @@ import NewsLine from './NewsLine';
 import EmailPanel from './EmailPanel';
 import EmailViewer from './EmailViewer';
 import SettingsPanel from './SettingsPanel';
+import TurnSummary from './TurnSummary';
 
 export default function Dashboard() {
   const {
@@ -72,10 +73,10 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex flex-col" style={{ background: 'var(--bg-primary)', height: '100vh', overflow: 'hidden' }}>
+    <div className="flex flex-col" style={{ background: 'var(--bg-primary)', height: '100vh', overflow: 'hidden', maxWidth: '1600px', margin: '0 auto', width: '100%' }}>
       {/* Top: Turn Interface */}
       <div className="toolbar sticky top-0 z-50 px-6 h-14 flex items-center gap-4">
-        <h1 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+        <h1 className="display" style={{ fontSize: '19px', color: 'var(--text-primary)' }}>
           Vending Machine Simulation
         </h1>
         <div className="flex-1" />
@@ -97,10 +98,10 @@ export default function Dashboard() {
       {/* Error */}
       {error && (
         <div className="mx-6 mt-3 px-4 py-2.5" style={{
-          background: '#FEF2F2',
-          border: '1px solid #FECACA',
+          background: 'var(--surface-alert)',
+          border: '1px solid var(--surface-alert-border)',
           borderRadius: 'var(--radius-md)',
-          color: 'var(--accent-red)',
+          color: 'var(--surface-alert-text)',
           fontSize: '13px',
         }}>
           {error}
@@ -124,7 +125,7 @@ export default function Dashboard() {
             if (e.target === e.currentTarget) setShowSettings(false);
           }}
         >
-          <div style={{
+          <div className="settings-modal" style={{
             width: '780px',
             maxHeight: 'calc(100vh - 120px)',
             overflowY: 'auto',
@@ -168,13 +169,22 @@ export default function Dashboard() {
 
       {state ? (
         <div className="flex flex-col flex-1 overflow-hidden">
-          {/* News Line */}
+          {/* News Line — 시장 컨텍스트 */}
           <NewsLine state={state} log={currentLog} />
 
-          {/* 3-column layout */}
-          <div className="flex flex-1 overflow-hidden">
+          {/* Turn Summary — 이번 턴의 주인공 정보 (delta 중심) */}
+          <TurnSummary
+            log={currentLog}
+            allLogs={allLogs}
+            finished={finished}
+            finishReason={finishReason}
+            onInspectWarnings={() => setCenterTab('agent')}
+          />
+
+          {/* 3-column layout — 참조 레일 2개 + 센터 drill-down */}
+          <div className="dashboard-columns flex flex-1 overflow-hidden">
             {/* Left: Email */}
-            <div className="sidebar flex-shrink-0 overflow-y-auto p-3" style={{ width: '260px' }}>
+            <div className="sidebar dashboard-left flex-shrink-0 overflow-y-auto p-3" style={{ width: '260px' }}>
               <EmailPanel
                 state={state}
                 selectedEmailId={selectedEmailId}
@@ -184,7 +194,7 @@ export default function Dashboard() {
             </div>
 
             {/* Center: Tabbed content */}
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="dashboard-center flex-1 flex flex-col overflow-hidden">
               {/* Tab buttons */}
               <div style={{
                 display: 'flex',
@@ -228,7 +238,7 @@ export default function Dashboard() {
                         marginLeft: '6px',
                         padding: '1px 6px',
                         background: 'var(--accent-primary)',
-                        color: 'white',
+                        color: 'var(--text-on-accent)',
                         fontSize: '9px',
                         borderRadius: '6px',
                         fontWeight: 700,
@@ -280,7 +290,7 @@ export default function Dashboard() {
             </div>
 
             {/* Right: Vending Machine + Finance */}
-            <div className="flex-shrink-0 overflow-y-auto p-3 space-y-3" style={{
+            <div className="dashboard-right flex-shrink-0 overflow-y-auto p-3 space-y-3" style={{
               width: '408px',
               borderLeft: '1px solid var(--border-light)',
               background: 'var(--bg-sidebar)',
@@ -292,11 +302,11 @@ export default function Dashboard() {
         </div>
       ) : (
         /* Pre-simulation: Settings + Welcome */
-        <div className="flex flex-1 overflow-hidden">
+        <div className="welcome-layout flex flex-1 overflow-hidden">
           <div className="sidebar flex-shrink-0 overflow-y-auto p-4" style={{ width: '320px' }}>
             {settingsPanel}
           </div>
-          <div className="flex-1 overflow-y-auto flex items-center p-6 gap-6">
+          <div className="welcome-main flex-1 overflow-y-auto flex items-center p-6 gap-6">
             <div className="flex-1" />
             {/* Center: Welcome + Date */}
             <div className="text-center" style={{ maxWidth: '400px', flexShrink: 0 }}>
@@ -314,7 +324,7 @@ export default function Dashboard() {
               }}>
                 🏭
               </div>
-              <h2 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
+              <h2 className="display" style={{ fontSize: '34px', color: 'var(--text-primary)', marginBottom: '12px', lineHeight: 1.15 }}>
                 Vending Machine Simulation
               </h2>
               <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
@@ -372,7 +382,7 @@ export default function Dashboard() {
                 <div style={{
                   background: 'var(--accent-primary)',
                   padding: '16px 20px',
-                  color: 'white',
+                  color: 'var(--text-on-accent)',
                 }}>
                   <h3 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '4px' }}>
                     게임 규칙
@@ -382,14 +392,14 @@ export default function Dashboard() {
                     시스템 프롬프트를 수정하여, Agent의 행동과 방향을 조정하여 수익을 극대화 시켜보세요.
                   </p>
                 </div>
-                {/* Body */}
-                <div style={{ background: 'var(--bg-card)', padding: '16px 20px' }}>
-                  <RuleItem title="시작 자금은 $500입니다" desc="매일 운영비 $2가 자동으로 빠져나갑니다." />
-                  <RuleItem title="자판기에는 12개의 슬롯이 있습니다" desc="소형 6칸에는 최대 15개, 대형 6칸에는 최대 8개까지 넣을 수 있습니다." />
-                  <RuleItem title="상품은 공급업체에 이메일로 주문합니다" desc="주문 후 1~3일 뒤에 배송이 도착합니다. 공급업체마다 가격과 성격이 다릅니다." />
-                  <RuleItem title="시장 상황이 매출에 영향을 줍니다" desc="날씨, 계절, 주말 여부, 뉴스 이벤트에 따라 고객 수와 구매 패턴이 달라집니다." />
-                  <RuleItem title="잔고가 5일 연속 마이너스면 파산합니다" desc="현금 흐름을 잘 관리하고, 자판기에 쌓인 매출을 적시에 수거하세요." />
-                  <RuleItem title="시뮬레이션이 끝나면 대여료 $400을 냅니다" desc="최종 정산에서 차감되므로, 충분한 이익을 확보해야 합니다." last />
+                {/* Body — 번호 매긴 핸드북 스타일 */}
+                <div style={{ background: 'var(--bg-card)', padding: '14px 18px' }}>
+                  <Rule n={1} text="시작 자금 $500 · 매일 운영비 $2 자동 차감" />
+                  <Rule n={2} text="12슬롯 자판기 (소형 6칸 각 15개, 대형 6칸 각 8개)" />
+                  <Rule n={3} text="공급업체에 이메일 주문 · 1–3일 뒤 배송" />
+                  <Rule n={4} text="날씨·계절·주말·뉴스가 수요와 매출에 영향" />
+                  <Rule n={5} text="잔고가 5일 연속 음수면 파산" />
+                  <Rule n={6} text="시뮬레이션 종료 시 자판기 대여료 $400 차감" last />
                 </div>
               </div>
 
@@ -401,15 +411,32 @@ export default function Dashboard() {
   );
 }
 
-function RuleItem({ title, desc, last }: { title: string; desc: string; last?: boolean }) {
+function Rule({ n, text, last }: { n: number; text: string; last?: boolean }) {
   return (
-    <div style={{
-      paddingBottom: last ? 0 : '10px',
-      marginBottom: last ? 0 : '10px',
+    <div className="flex items-start gap-3" style={{
+      paddingBottom: last ? 0 : '8px',
+      marginBottom: last ? 0 : '8px',
       borderBottom: last ? 'none' : '1px solid var(--border-light)',
     }}>
-      <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{title}</div>
-      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px', lineHeight: 1.5 }}>{desc}</div>
+      <span style={{
+        fontSize: '10px',
+        fontFamily: 'var(--font-mono)',
+        color: 'var(--text-quaternary)',
+        fontWeight: 600,
+        letterSpacing: '0.02em',
+        marginTop: '2px',
+        flexShrink: 0,
+      }}>
+        {String(n).padStart(2, '0')}
+      </span>
+      <span style={{
+        fontSize: '12px',
+        color: 'var(--text-secondary)',
+        lineHeight: 1.55,
+      }}>
+        {text}
+      </span>
     </div>
   );
 }
+

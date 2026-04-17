@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { SimulationState, Email } from '@/simulation/types';
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
 
 type TabType = 'received' | 'sent';
 
-export default function EmailPanel({ state, selectedEmailId, onSelectEmail, onSwitchToEmailTab }: Props) {
+function EmailPanelImpl({ state, selectedEmailId, onSelectEmail, onSwitchToEmailTab }: Props) {
   const [tab, setTab] = useState<TabType>('received');
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
@@ -24,7 +24,7 @@ export default function EmailPanel({ state, selectedEmailId, onSelectEmail, onSw
   const displayEmails = tab === 'received' ? receivedEmails : sentEmails;
 
   return (
-    <div className="card p-3 flex flex-col" style={{ maxHeight: '500px' }}>
+    <div className="surface-rail p-3 flex flex-col" style={{ maxHeight: '500px' }}>
       <h3 className="section-heading" style={{ marginBottom: '8px' }}>
         Email & Orders
       </h3>
@@ -32,7 +32,7 @@ export default function EmailPanel({ state, selectedEmailId, onSelectEmail, onSw
       {/* Pending Orders */}
       {pendingOrders.length > 0 && (
         <div style={{ marginBottom: '8px', flexShrink: 0 }}>
-          <div className="section-heading" style={{ marginBottom: '4px', color: 'var(--accent-orange)' }}>
+          <div className="section-heading" style={{ marginBottom: '4px', color: 'var(--surface-pending-text)' }}>
             배송 대기 ({pendingOrders.length})
           </div>
           {pendingOrders.map(order => {
@@ -41,15 +41,20 @@ export default function EmailPanel({ state, selectedEmailId, onSelectEmail, onSw
             const isExpanded = expandedOrderId === order.id;
             const supplier = state.suppliers.find(s => s.id === order.supplierId);
             return (
-              <div
+              <button
                 key={order.id}
+                type="button"
                 onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
+                aria-expanded={isExpanded}
                 style={{
-                  background: '#FFF7ED',
+                  display: 'block',
+                  width: '100%',
+                  textAlign: 'left',
+                  background: 'var(--surface-pending)',
                   borderRadius: 'var(--radius-sm)',
                   padding: '6px 8px',
                   marginBottom: '4px',
-                  border: '1px solid #FED7AA',
+                  border: '1px solid var(--surface-pending-border)',
                   cursor: 'pointer',
                   transition: 'background var(--transition-fast)',
                 }}
@@ -58,7 +63,7 @@ export default function EmailPanel({ state, selectedEmailId, onSelectEmail, onSw
                   <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
                     {order.id}
                   </span>
-                  <span style={{ fontSize: '10px', color: 'var(--accent-orange)', fontWeight: 600 }}>
+                  <span style={{ fontSize: '10px', color: 'var(--surface-pending-text)', fontWeight: 600 }}>
                     {daysLeft > 0 ? `${daysLeft}일 후` : '도착 중...'}
                   </span>
                 </div>
@@ -69,7 +74,7 @@ export default function EmailPanel({ state, selectedEmailId, onSelectEmail, onSw
                   <div style={{
                     marginTop: '6px',
                     paddingTop: '6px',
-                    borderTop: '1px solid #FED7AA',
+                    borderTop: '1px solid var(--surface-pending-border)',
                     fontSize: '10px',
                   }}>
                     <div style={{ color: 'var(--text-secondary)', marginBottom: '4px' }}>
@@ -87,7 +92,7 @@ export default function EmailPanel({ state, selectedEmailId, onSelectEmail, onSw
                     <div className="flex justify-between" style={{
                       marginTop: '4px',
                       paddingTop: '4px',
-                      borderTop: '1px dashed #FED7AA',
+                      borderTop: '1px dashed var(--surface-pending-border)',
                       fontWeight: 600,
                       color: 'var(--text-primary)',
                     }}>
@@ -96,7 +101,7 @@ export default function EmailPanel({ state, selectedEmailId, onSelectEmail, onSw
                     </div>
                   </div>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>
@@ -111,7 +116,7 @@ export default function EmailPanel({ state, selectedEmailId, onSelectEmail, onSw
               marginLeft: '4px',
               padding: '0 5px',
               background: 'var(--accent-primary)',
-              color: 'white',
+              color: 'var(--text-on-accent)',
               fontSize: '9px',
               borderRadius: '6px',
               fontWeight: 700,
@@ -171,6 +176,9 @@ export default function EmailPanel({ state, selectedEmailId, onSelectEmail, onSw
   );
 }
 
+const EmailPanel = memo(EmailPanelImpl);
+export default EmailPanel;
+
 function EmailRow({ email, isSelected, onClick }: { email: Email; isSelected: boolean; onClick: () => void }) {
   const isSent = email.type === 'sent';
   const isUnread = !email.read && !isSent;
@@ -188,7 +196,7 @@ function EmailRow({ email, isSelected, onClick }: { email: Email; isSelected: bo
         border: 'none',
         cursor: 'pointer',
         background: isSelected ? 'var(--accent-primary)' : 'transparent',
-        color: isSelected ? 'white' : 'var(--text-primary)',
+        color: isSelected ? 'var(--text-on-accent)' : 'var(--text-primary)',
         display: 'block',
       }}
       onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--fill-light)'; }}
@@ -198,8 +206,8 @@ function EmailRow({ email, isSelected, onClick }: { email: Email; isSelected: bo
         <div className="flex items-center gap-1.5" style={{ minWidth: 0 }}>
           <span className="badge" style={{
             fontSize: '9px',
-            background: isSelected ? 'rgba(255,255,255,0.2)' : isSent ? '#ECFDF5' : '#EFF6FF',
-            color: isSelected ? 'white' : isSent ? 'var(--accent-green)' : 'var(--accent-blue)',
+            background: isSelected ? 'rgba(255,255,255,0.2)' : isSent ? 'var(--surface-success)' : 'var(--surface-info)',
+            color: isSelected ? 'var(--text-on-accent)' : isSent ? 'var(--surface-success-text)' : 'var(--surface-info-text)',
           }}>
             {isSent ? '발신' : '수신'}
           </span>
@@ -227,7 +235,7 @@ function EmailRow({ email, isSelected, onClick }: { email: Email; isSelected: bo
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
         fontWeight: isUnread ? 600 : 400,
-        color: isSelected ? 'white' : isUnread ? 'var(--text-primary)' : 'var(--text-secondary)',
+        color: isSelected ? 'var(--text-on-accent)' : isUnread ? 'var(--text-primary)' : 'var(--text-secondary)',
       }}>
         {email.subject}
       </div>

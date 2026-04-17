@@ -1,20 +1,27 @@
 @import "tailwindcss";
+/* 한국어 body용 — next/font로 로드되는 Latin body와 자연 합성 */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css");
 
 :root {
-  /* Warm Light Theme - Anthropic Console inspired */
+  /* Warm Light Theme - Anthropic Console inspired
+   * Neutrals tinted toward brand hue (terracotta, OKLCH hue ≈37°)
+   * — pure #FFFFFF / #1A1A1A는 브랜드 톤과 어긋나 subconscious cohesion을 깨뜨림 */
   --bg-primary: #FAF7F2;
   --bg-secondary: #F0EBE3;
   --bg-sidebar: #F0EBE3;
-  --bg-card: #FFFFFF;
-  --bg-card-hover: #FAFAF8;
-  --bg-input: #FFFFFF;
-  --bg-elevated: #FFFFFF;
+  --bg-card: #FEFDFB;         /* oklch(0.995 0.003 60) — subtle cream tilt */
+  --bg-card-hover: #FBF9F5;   /* 좀 더 따뜻한 호버 */
+  --bg-input: #FEFDFB;
+  --bg-elevated: #FEFDFB;
 
   /* Text */
-  --text-primary: #1A1A1A;
+  --text-primary: #1B1815;    /* oklch(0.217 0.005 37) — warm near-black */
   --text-secondary: #6B6560;
   --text-tertiary: #9B9590;
   --text-quaternary: #C0B8B0;
+
+  /* Accent 위 텍스트 — pure white 대신 subtle warm cream */
+  --text-on-accent: #FFFBF5;
 
   /* Accent Colors */
   --accent-primary: #D4714E;
@@ -31,14 +38,44 @@
   --border-default: #DDD6CC;
   --border-strong: #C8BFB5;
 
+  /* Semantic surfaces (tinted accent backgrounds) */
+  --surface-warning: #FFFBEB;
+  --surface-warning-border: #FCD34D;
+  --surface-warning-text: #92400E;
+  --surface-warning-text-strong: #78350F;
+
+  --surface-info: #EFF6FF;
+  --surface-info-border: #BFDBFE;
+  --surface-info-text: var(--accent-blue);
+
+  --surface-success: #ECFDF5;
+  --surface-success-border: #A7F3D0;
+  --surface-success-text: var(--accent-green);
+
+  --surface-alert: #FEF2F2;
+  --surface-alert-border: #FECACA;
+  --surface-alert-text: var(--accent-red);
+
+  --surface-pending: #FFF7ED;
+  --surface-pending-border: #FED7AA;
+  --surface-pending-text: var(--accent-orange);
+
   /* Fills */
   --fill-subtle: rgba(0, 0, 0, 0.03);
   --fill-light: rgba(0, 0, 0, 0.05);
   --fill-medium: rgba(0, 0, 0, 0.08);
 
-  /* Typography */
-  --font-system: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: "SF Mono", SFMono-Regular, ui-monospace, "Cascadia Code", "Consolas", monospace;
+  /* Typography — next/font(Hanken Grotesk / Hedvig Letters Serif / JetBrains Mono) + Pretendard (Korean) */
+  /* --font-body, --font-display, --font-mono는 layout.tsx의 next/font가 주입 */
+  --font-system:
+    var(--font-body, -apple-system),
+    "Pretendard Variable", "Pretendard",
+    "Apple SD Gothic Neo", "Malgun Gothic",
+    BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  --font-display:
+    var(--font-display, Georgia),
+    "Pretendard Variable", "Apple SD Gothic Neo",
+    "Malgun Gothic", serif;
 
   /* Sizing */
   --radius-sm: 4px;
@@ -57,7 +94,7 @@
   --transition-default: 200ms ease;
 
   --background: #FAF7F2;
-  --foreground: #1A1A1A;
+  --foreground: #1B1815;
 }
 
 @theme inline {
@@ -71,16 +108,43 @@ body {
   font-family: var(--font-system);
   font-size: 14px;
   line-height: 1.5;
+  font-feature-settings: "ss01", "cv01", "cv11"; /* Hanken Grotesk 스타일 세트·숫자 정제 */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Card */
+/* Display — hero 타이틀 전용 (희소 적용 원칙) */
+.display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* Card — 센터 컬럼 drill-down 용 (그림자 있어 시각 무게 ↑) */
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
+}
+
+/* Rail surface — 참조 레일(좌/우 사이드바)용. 그림자 없어 시각 무게 ↓ */
+.surface-rail {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+/* Global focus — 키보드 네비게이션 visible, 테라코타 outline */
+:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+.input:focus-visible,
+.select:focus-visible {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(212, 113, 78, 0.15);
 }
 
 /* Sidebar */
@@ -116,7 +180,7 @@ body {
   color: var(--bg-primary);
 }
 .btn-primary:hover {
-  background: #333;
+  background: #3D3531;  /* warm near-dark, 중립 #333 회피 */
 }
 .btn-primary:disabled {
   background: var(--text-quaternary);
@@ -135,7 +199,7 @@ body {
 
 .btn-accent {
   background: var(--accent-primary);
-  color: white;
+  color: var(--text-on-accent);
 }
 .btn-accent:hover {
   opacity: 0.9;
@@ -277,5 +341,43 @@ body {
   *, *::before, *::after {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
+  }
+}
+
+/* Responsive — ≤1024px에서 3-column → 1-column 스택 (최소 방어, 주 맥락은 데스크톱 관람)
+ * 각 패널은 자연 높이로 흐르고 외곽 컨테이너가 스크롤 */
+@media (max-width: 1024px) {
+  .dashboard-columns {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+  .dashboard-left,
+  .dashboard-right {
+    width: 100% !important;
+    max-height: none !important;
+    border-right: none !important;
+    border-left: none !important;
+    border-bottom: 1px solid var(--border-light) !important;
+  }
+  .dashboard-center {
+    flex: 1 0 auto !important;
+    min-height: 380px;
+  }
+  .settings-modal {
+    width: calc(100vw - 24px) !important;
+  }
+  .welcome-layout {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+  .welcome-layout .sidebar {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-light) !important;
+  }
+  .welcome-main {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 24px !important;
   }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useEffect, useCallback } from 'react';
+import { memo, useMemo, useRef, useEffect, useCallback } from 'react';
 import { TurnLog, SimulationState } from '@/simulation/types';
 import { weatherLabel, seasonLabel, dayOfWeekLabel } from '@/simulation/market';
 
@@ -12,7 +12,7 @@ interface Props {
 // Speed: pixels per second (lower = slower)
 const TICKER_SPEED = 20;
 
-export default function NewsLine({ state, log }: Props) {
+function NewsLineImpl({ state, log }: Props) {
   const market = log?.market;
   const visibleEvents = state.marketEvents.filter(e => e.visible && e.expiresDay > state.day);
   const isWeekend = market && (market.dayOfWeek === 'sat' || market.dayOfWeek === 'sun');
@@ -87,10 +87,10 @@ export default function NewsLine({ state, log }: Props) {
       {/* Day + Progress */}
       <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
         <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Day</span>
-        <span style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+        <span style={{ fontSize: '14px', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
           {state.day}
         </span>
-        <span style={{ fontSize: '12px', color: 'var(--text-quaternary)' }}>/ {state.maxDays}</span>
+        <span style={{ fontSize: '12px', color: 'var(--text-quaternary)', fontVariantNumeric: 'tabular-nums' }}>/ {state.maxDays}</span>
         <div style={{
           width: '60px',
           height: '4px',
@@ -111,16 +111,17 @@ export default function NewsLine({ state, log }: Props) {
 
       <div style={{ width: '1px', height: '16px', background: 'var(--border-default)' }} />
 
-      {/* Market info pills */}
+      {/* Market info — 날짜·요일 한 pill, 날씨·계절 한 pill */}
       {market && (
         <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
-          <Pill label={market.date} />
-          <Pill label={dayOfWeekLabel(market.dayOfWeek)} highlight={isWeekend} />
-          <Pill label={weatherLabel(market.weather)} />
-          <Pill label={seasonLabel(market.season)} />
+          <Pill
+            label={`${market.date} (${dayOfWeekLabel(market.dayOfWeek)})`}
+            highlight={isWeekend}
+          />
+          <Pill label={`${weatherLabel(market.weather)} · ${seasonLabel(market.season)}`} />
           {isWeekend && (
             <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--accent-orange)' }}>
-              Weekend +30%
+              주말 +30%
             </span>
           )}
         </div>
@@ -134,12 +135,12 @@ export default function NewsLine({ state, log }: Props) {
           <div className="flex items-center gap-3 flex-1" style={{ minWidth: 0, overflow: 'hidden' }}>
             <span style={{
               padding: '2px 8px',
-              background: '#FFFBEB',
-              color: 'var(--accent-orange)',
+              background: 'var(--surface-pending)',
+              color: 'var(--surface-pending-text)',
               fontSize: '10px',
               fontWeight: 700,
               borderRadius: '4px',
-              border: '1px solid #FDE68A',
+              border: '1px solid var(--surface-pending-border)',
               flexShrink: 0,
             }}>
               NEWS
@@ -178,14 +179,17 @@ export default function NewsLine({ state, log }: Props) {
   );
 }
 
+const NewsLine = memo(NewsLineImpl);
+export default NewsLine;
+
 function Pill({ label, highlight }: { label: string; highlight?: boolean }) {
   return (
     <span style={{
       fontSize: '11px',
       padding: '2px 8px',
       borderRadius: '4px',
-      background: highlight ? '#FFF7ED' : 'var(--fill-light)',
-      color: highlight ? 'var(--accent-orange)' : 'var(--text-secondary)',
+      background: highlight ? 'var(--surface-pending)' : 'var(--fill-light)',
+      color: highlight ? 'var(--surface-pending-text)' : 'var(--text-secondary)',
       fontWeight: 500,
       whiteSpace: 'nowrap',
     }}>

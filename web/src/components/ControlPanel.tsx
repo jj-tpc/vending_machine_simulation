@@ -97,10 +97,10 @@ export default function ControlPanel({
 
             <div className="flex items-center gap-1.5" style={{ fontSize: '13px', flexShrink: 0 }}>
               <span style={{ color: 'var(--text-secondary)' }}>Day</span>
-              <span style={{ fontWeight: 700, fontSize: '16px', fontFamily: 'var(--font-mono)' }}>
+              <span style={{ fontWeight: 700, fontSize: '16px', fontVariantNumeric: 'tabular-nums' }}>
                 {state.day}
               </span>
-              <span style={{ color: 'var(--text-tertiary)' }}>/ {state.maxDays}</span>
+              <span style={{ color: 'var(--text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>/ {state.maxDays}</span>
             </div>
 
             <div style={{ width: '1px', height: '16px', background: 'var(--border-default)', margin: '0 4px' }} />
@@ -108,8 +108,8 @@ export default function ControlPanel({
             {finished ? (
               <>
                 <span className="badge" style={{
-                  background: finishReason === 'bankrupt' ? '#FEF2F2' : '#FFF7ED',
-                  color: finishReason === 'bankrupt' ? 'var(--accent-red)' : 'var(--accent-orange)',
+                  background: finishReason === 'bankrupt' ? 'var(--surface-alert)' : 'var(--surface-pending)',
+                  color: finishReason === 'bankrupt' ? 'var(--surface-alert-text)' : 'var(--surface-pending-text)',
                   fontSize: '12px',
                   padding: '3px 10px',
                 }}>
@@ -191,7 +191,7 @@ export default function ControlPanel({
                 style={{
                   minWidth: '80px',
                   background: 'var(--accent-red)',
-                  color: 'white',
+                  color: 'var(--text-on-accent)',
                 }}
               >
                 리셋

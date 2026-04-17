@@ -27,8 +27,8 @@ export default function EmailViewer({ email }: Props) {
       <div style={{ borderBottom: '1px solid var(--border-light)', paddingBottom: '14px', marginBottom: '14px' }}>
         <div className="flex items-center gap-2" style={{ marginBottom: '8px' }}>
           <span className="badge" style={{
-            background: isSent ? '#ECFDF5' : '#EFF6FF',
-            color: isSent ? 'var(--accent-green)' : 'var(--accent-blue)',
+            background: isSent ? 'var(--surface-success)' : 'var(--surface-info)',
+            color: isSent ? 'var(--surface-success-text)' : 'var(--surface-info-text)',
             fontSize: '11px',
           }}>
             {isSent ? '보낸 메일' : '받은 메일'}

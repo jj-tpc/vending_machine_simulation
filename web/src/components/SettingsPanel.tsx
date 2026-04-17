@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { ModelInfo, LlmVendor } from '@/simulation/types';
 import { DEFAULT_AGENT_PROMPT } from '@/simulation/agent';
 
@@ -24,7 +24,7 @@ interface Props {
   disabled: boolean;
 }
 
-export default function SettingsPanel({
+function SettingsPanelImpl({
   models,
   modelsLoading,
   selectedModel,
@@ -203,9 +203,8 @@ export default function SettingsPanel({
               style={{
                 height: 'auto',
                 padding: '10px',
-                fontSize: '12px',
-                fontFamily: 'var(--font-mono)',
-                lineHeight: 1.5,
+                fontSize: '13px',
+                lineHeight: 1.55,
                 resize: 'vertical',
               }}
               placeholder="에이전트의 역할, 성격, 행동 패턴을 자유롭게 작성하세요..."
@@ -230,3 +229,6 @@ export default function SettingsPanel({
     </div>
   );
 }
+
+const SettingsPanel = memo(SettingsPanelImpl);
+export default SettingsPanel;
