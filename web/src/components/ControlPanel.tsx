@@ -95,15 +95,7 @@ export default function ControlPanel({
               </>
             )}
 
-            <div className="flex items-center gap-1.5" style={{ fontSize: '13px', flexShrink: 0 }}>
-              <span style={{ fontWeight: 700, fontSize: '16px', fontVariantNumeric: 'tabular-nums' }}>
-                {state.day}
-              </span>
-              <span style={{ color: 'var(--text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>/ {state.maxDays}일</span>
-            </div>
-
-            <div style={{ width: '1px', height: '16px', background: 'var(--border-default)', margin: '0 4px' }} />
-
+            {/* Day N/M 카운터는 Scrubber 라벨로 통합됨 (NewsLine) — 중복 제거 */}
             {finished ? (
               <>
                 <span className="badge" style={{

@@ -104,15 +104,13 @@ function NewsLineImpl({ state, log, tailDay, cursorDay, onSeek }: Props) {
   }, [visibleEvents]);
 
   return (
+    /* toolbar에 흡수된 모드 — 자체 strip 제거, flex:1 inline row로 동작 */
     <div style={{
-      background: 'var(--bg-card)',
-      borderBottom: '1px solid var(--border-light)',
-      padding: '8px 20px',
+      flex: 1,
+      minWidth: 0,
       display: 'flex',
       alignItems: 'center',
-      gap: '16px',
-      minHeight: '40px',
-      flexShrink: 0,
+      gap: '14px',
     }}>
       {/* Day label + Scrubber — N일 / M일 표기 + 드래그/클릭/키보드 탐색 */}
       <div className="flex items-center gap-3" style={{ flexShrink: 0 }}>

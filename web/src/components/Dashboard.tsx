@@ -107,6 +107,26 @@ export default function Dashboard() {
     return () => document.removeEventListener('keydown', handleKey);
   }, [state, tailDay, cursorDay, isLoading, finished, showSettings, handleNextTurn]);
 
+  // 센터 탭 스크롤 감지 → TurnSummary compact(28px) 토글. hysteresis 60/40으로 플리커 방지
+  const [isCompact, setIsCompact] = useState(false);
+  const centerScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = centerScrollRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const top = el.scrollTop;
+      setIsCompact(prev => {
+        if (!prev && top > 60) return true;
+        if (prev && top < 40) return false;
+        return prev;
+      });
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [state, centerTab]);
+  // 탭 전환 시 스크롤 리셋 → compact 복귀 (useLayoutEffect 없이 state 변경으로 간접 처리)
+  useEffect(() => { setIsCompact(false); }, [centerTab]);
+
   // 종료 ceremony: finished가 false → true로 뒤집힐 때 일회성 dim overlay를 재생
   const [dimActive, setDimActive] = useState(false);
   const dimPlayedForFinishRef = useRef(false);
@@ -151,10 +171,25 @@ export default function Dashboard() {
     <div className="flex flex-col" style={{ background: 'var(--bg-primary)', height: '100vh', overflow: 'hidden', maxWidth: '1600px', margin: '0 auto', width: '100%' }}>
       {/* Top: Turn Interface */}
       <div className="toolbar sticky top-0 z-50 px-6 h-14 flex items-center gap-4">
-        <h1 className="display" style={{ fontSize: '19px', color: 'var(--text-primary)' }}>
+        <h1 className="display" style={{ fontSize: '19px', color: 'var(--text-primary)', flexShrink: 0 }}>
           Vending Machine Simulation
         </h1>
-        <div className="flex-1" />
+        {/* NewsLine 흡수 — 별도 40px strip 제거. sim 실행 중에만 노출, 그 외엔 spacer */}
+        {state ? (
+          <>
+            <div style={{ width: '1px', height: '20px', background: 'var(--border-default)', flexShrink: 0 }} />
+            <NewsLine
+              state={state}
+              log={displayLog}
+              tailDay={tailDay}
+              cursorDay={cursorDay}
+              onSeek={setCursorDay}
+            />
+            <div style={{ width: '1px', height: '20px', background: 'var(--border-default)', flexShrink: 0 }} />
+          </>
+        ) : (
+          <div className="flex-1" />
+        )}
         <ControlPanel
           state={state}
           isLoading={isLoading}
@@ -288,16 +323,9 @@ export default function Dashboard() {
             />
           )}
 
-          {/* News Line — 시장 컨텍스트 + turn scrubber */}
-          <NewsLine
-            state={state}
-            log={displayLog}
-            tailDay={tailDay}
-            cursorDay={cursorDay}
-            onSeek={setCursorDay}
-          />
+          {/* NewsLine은 toolbar에 흡수됨 — 여기서는 TurnSummary가 바로 시작 */}
 
-          {/* Turn Summary — displayLog 기반 + 히스토리 배지 */}
+          {/* Turn Summary — displayLog 기반 + 히스토리 배지. compact는 센터 탭 스크롤로 구동 */}
           <TurnSummary
             log={displayLog}
             allLogs={allLogs}
@@ -306,6 +334,7 @@ export default function Dashboard() {
             tailDay={tailDay}
             onReturnLive={returnToLive}
             onInspectWarnings={() => setCenterTab('agent')}
+            compact={isCompact && centerTab === 'agent'}
           />
 
           {/* 3-column layout — 참조 레일 2개 + 센터 drill-down */}
@@ -377,8 +406,8 @@ export default function Dashboard() {
                 ))}
               </div>
 
-              {/* Tab content */}
-              <div className="flex-1 overflow-y-auto p-4">
+              {/* Tab content — scrollRef 연결해 TurnSummary compact 트리거 */}
+              <div ref={centerScrollRef} className="flex-1 overflow-y-auto p-4">
                 {centerTab === 'agent' && (
                   <AgentLog log={displayLog} />
                 )}

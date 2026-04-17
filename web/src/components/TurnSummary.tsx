@@ -16,27 +16,71 @@ interface Props {
   onReturnLive?: () => void;
   /** WarningStripe 클릭 시 호출 (Dashboard에서 Agent 탭으로 전환) */
   onInspectWarnings?: () => void;
+  /** true면 28px 한 줄 축약본 — 센터 탭 스크롤 시 */
+  compact?: boolean;
 }
 
 /**
  * 턴 요약 히어로. 평등한 3-column 위에 두어 "이번 턴의 주인공 정보"를 선명히.
  * centered big-number hero 패턴 회피 — 좌측 정렬 logbook 스타일.
  */
-function TurnSummaryImpl({ log, allLogs, finished, isHistory, tailDay, onReturnLive, onInspectWarnings }: Props) {
-  // Hook은 조건부 return 이전에 호출해야 함 (rules-of-hooks)
-  const { previousLog, salesDelta, salesDeltaPct, balanceDelta, netWorthDelta } = useMemo(() => {
-    if (!log) return { previousLog: null, salesDelta: null, salesDeltaPct: null, balanceDelta: null, netWorthDelta: null };
-    const prev = allLogs.length >= 2 ? allLogs[allLogs.length - 2] : null;
+function TurnSummaryImpl({ log, allLogs, finished, isHistory, tailDay, onReturnLive, onInspectWarnings, compact }: Props) {
+  // Hook은 조건부 return 이전에 호출해야 함 (rules-of-hooks).
+  // 메트릭 5→3 축소: 잔고·판매(units)는 FinancialPanel에 있음. previousLog 기준은 cursor가 아닌 tail이 아님 — logs 인덱스 기준으로 바로 이전.
+  const { previousLog, salesDelta, salesDeltaPct, netWorthDelta } = useMemo(() => {
+    if (!log) return { previousLog: null, salesDelta: null, salesDeltaPct: null, netWorthDelta: null };
+    // log.day - 1이 존재하면 그것과 비교 (히스토리 모드에서도 올바른 delta)
+    const prev = log.day >= 2 && allLogs.length >= log.day ? allLogs[log.day - 2] : null;
     return {
       previousLog: prev,
       salesDelta: prev ? log.sales.totalRevenue - prev.sales.totalRevenue : null,
       salesDeltaPct: prev && prev.sales.totalRevenue > 0
         ? ((log.sales.totalRevenue - prev.sales.totalRevenue) / prev.sales.totalRevenue) * 100
         : null,
-      balanceDelta: prev ? log.balanceAfter - prev.balanceAfter : null,
       netWorthDelta: prev ? log.netWorth - prev.netWorth : null,
     };
   }, [log, allLogs]);
+
+  // Compact 모드: 센터 탭 스크롤 중 28px 한 줄 축약. 일차 + 매출+%delta만.
+  if (log && compact) {
+    const deltaText = salesDeltaPct !== null
+      ? `${salesDeltaPct >= 0 ? '+' : ''}${salesDeltaPct.toFixed(0)}%`
+      : null;
+    const deltaPositive = salesDelta !== null && salesDelta >= 0;
+    return (
+      <div style={{
+        height: '28px',
+        padding: '0 24px',
+        borderBottom: '1px solid var(--border-default)',
+        background: 'var(--bg-card)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        flexShrink: 0,
+        fontSize: '11px',
+        fontVariantNumeric: 'tabular-nums',
+      }}>
+        <span className="section-heading" style={{ margin: 0 }}>{log.day}일차</span>
+        <span style={{ color: 'var(--text-quaternary)' }}>·</span>
+        <span style={{ color: 'var(--text-tertiary)' }}>매출</span>
+        <span style={{
+          fontFamily: 'var(--font-mono)',
+          fontWeight: 600,
+          color: 'var(--text-primary)',
+        }}>
+          ${log.sales.totalRevenue.toFixed(2)}
+        </span>
+        {deltaText && (
+          <span style={{
+            fontWeight: 600,
+            color: deltaPositive ? 'var(--accent-green)' : 'var(--accent-red)',
+          }}>
+            {deltaText}
+          </span>
+        )}
+      </div>
+    );
+  }
 
   if (!log) {
     return (
@@ -92,7 +136,8 @@ function TurnSummaryImpl({ log, allLogs, finished, isHistory, tailDay, onReturnL
         완료
       </div>
 
-      {/* Metrics row — 좌측 정렬 tabular logbook */}
+      {/* Metrics row — 매출(primary) · 순자산 · 행동 3개로 축소.
+          잔고/판매(units)는 FinancialPanel(누적) 중복이라 제거. */}
       <div style={{
         display: 'flex',
         gap: '36px',
@@ -106,17 +151,9 @@ function TurnSummaryImpl({ log, allLogs, finished, isHistory, tailDay, onReturnL
           delta={salesDeltaPct !== null
             ? `${salesDeltaPct >= 0 ? '+' : ''}${salesDeltaPct.toFixed(0)}%`
             : undefined}
-          deltaHint={previousLog ? `vs D${previousLog.day}` : undefined}
+          deltaHint={previousLog ? `vs ${previousLog.day}일` : undefined}
           deltaPositive={salesDelta !== null && salesDelta >= 0}
           primary
-        />
-        <Metric
-          label="잔고"
-          value={`$${log.balanceAfter.toFixed(2)}`}
-          delta={balanceDelta !== null
-            ? `${balanceDelta >= 0 ? '+' : ''}$${balanceDelta.toFixed(2)}`
-            : undefined}
-          deltaPositive={balanceDelta !== null && balanceDelta >= 0}
         />
         <Metric
           label="순자산"
@@ -125,11 +162,6 @@ function TurnSummaryImpl({ log, allLogs, finished, isHistory, tailDay, onReturnL
             ? `${netWorthDelta >= 0 ? '+' : ''}$${netWorthDelta.toFixed(2)}`
             : undefined}
           deltaPositive={netWorthDelta !== null && netWorthDelta >= 0}
-        />
-        <Metric
-          label="판매"
-          value={`${log.sales.totalUnitsSold}`}
-          suffix="units"
         />
         <Metric
           label="행동"
