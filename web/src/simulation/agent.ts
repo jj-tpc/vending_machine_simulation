@@ -161,29 +161,15 @@ async function executeTool(
       return { result: storageSummary(state.storage), state };
     }
     case 'send_email': {
-      const { to, subject, body } = input as { to?: string; subject?: string; body?: string };
-
-      // LLM이 본문을 비우거나 공백·플레이스홀더만 채워 보내는 실수 방지 — 전송 없이 반려하고 재시도 유도.
-      // 빈 본문을 그대로 공급업체 LLM에 넘기면 이상한 응답/파싱 실패로 이어지므로 상태에도 저장하지 않음.
-      const trimmedBody = (body ?? '').trim();
-      const missing: string[] = [];
-      if (!to) missing.push('to(수신자)');
-      if (!subject) missing.push('subject(제목)');
-      if (!trimmedBody) missing.push('body(본문)');
-      if (missing.length > 0) {
-        const msg = `이메일 전송 실패: ${missing.join(', ')}이(가) 비어있습니다. send_email을 다시 호출하되 body 인자에 실제 문의/주문 내용을 작성하세요.`;
-        warnings?.push(`에이전트가 빈 ${missing.join('/')}(으)로 send_email을 시도했습니다. 전송되지 않음.`);
-        return { result: msg, state };
-      }
-
+      const { to, subject, body } = input as { to: string; subject: string; body: string };
       // 에이전트가 보낸 이메일 기록
       const sentEmail: Email = {
         id: `SENT-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         day: state.day,
         from: 'agent@vendingmachine.com',
-        to: to as string,
-        subject: subject as string,
-        body: body as string,
+        to,
+        subject,
+        body,
         read: true,
         type: 'sent',
       };
@@ -444,7 +430,9 @@ export async function runAgentTurn(
 
   const READ_ONLY_TOOLS = new Set(['check_balance', 'get_machine_inventory', 'get_storage_inventory', 'read_inbox']);
   const MAX_TOOL_CALLS = 8;
+  const MAX_EMPTY_EMAIL_RETRIES = 3;
   let toolCallCount = 0;
+  let emptyEmailRetries = 0;
 
   while (toolCallCount < MAX_TOOL_CALLS) {
     emit('생각중...', 'start');
@@ -502,6 +490,34 @@ export async function runAgentTurn(
 
     // Mutating: sequential execution
     for (const tc of mutatingCalls) {
+      // send_email 본문/필수 인자가 비어있으면 실제 전송하지 않고 LLM이 같은 턴 내에서 다시 채워 호출하도록 유도.
+      // 기존에는 subject만 있고 body가 빈 이메일이 공급업체에 전달되어 이상 응답·파싱 실패를 유발했음.
+      // 재시도는 toolCallCount를 소모하지 않지만 emptyEmailRetries 한도로 무한 루프 방지.
+      if (tc.name === 'send_email') {
+        const args = tc.args as { to?: string; subject?: string; body?: string };
+        const missing: string[] = [];
+        if (!args.to) missing.push('to(수신자)');
+        if (!args.subject) missing.push('subject(제목)');
+        if (!args.body || !args.body.trim()) missing.push('body(본문)');
+
+        if (missing.length > 0) {
+          if (emptyEmailRetries < MAX_EMPTY_EMAIL_RETRIES) {
+            emptyEmailRetries++;
+            const retryMsg = `이메일 전송 보류 (재시도 ${emptyEmailRetries}/${MAX_EMPTY_EMAIL_RETRIES}): ${missing.join(', ')}이(가) 비어있습니다. send_email을 다시 호출하되 body에 실제 문의/주문/협상 내용을 반드시 포함하세요. 빈 본문·공백·플레이스홀더 금지.`;
+            emit(`빈 이메일 재시도 ${emptyEmailRetries}/${MAX_EMPTY_EMAIL_RETRIES}`, 'done', `빈 이메일 재시도 ${emptyEmailRetries}/${MAX_EMPTY_EMAIL_RETRIES}`);
+            messages.push(new ToolMessage({ content: retryMsg, tool_call_id: tc.id! }));
+            continue; // toolCallCount 증가 없이 LLM 재호출
+          } else {
+            const giveUpMsg = `이메일 전송 포기: ${MAX_EMPTY_EMAIL_RETRIES}회 연속 ${missing.join(', ')}이(가) 비어있어 취소합니다. 다음 턴에 다시 시도하세요.`;
+            warnings?.push(`에이전트가 ${MAX_EMPTY_EMAIL_RETRIES}회 연속 빈 본문/필수 필드로 send_email 시도 → 전송 취소`);
+            actions.push({ tool: 'send_email', input: tc.args as Record<string, unknown>, result: giveUpMsg });
+            messages.push(new ToolMessage({ content: giveUpMsg, tool_call_id: tc.id! }));
+            toolCallCount++;
+            continue;
+          }
+        }
+      }
+
       const loadingLabel = humanizeToolsForStatus([tc.name], 'start');
       const doneLabel = humanizeToolsForStatus([tc.name], 'done');
       emit(loadingLabel, 'start');
