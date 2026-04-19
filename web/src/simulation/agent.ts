@@ -158,7 +158,7 @@ async function executeTool(
       return { result: machineInventorySummary(state.machine), state };
     }
     case 'get_storage_inventory': {
-      return { result: storageSummary(state.storage), state };
+      return { result: storageSummary(state.storage, state.suppliers), state };
     }
     case 'send_email': {
       const { to, subject, body } = input as { to: string; subject: string; body: string };

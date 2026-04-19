@@ -1,4 +1,4 @@
-import { MachineSlot, StorageItem, SlotSize } from './types';
+import { MachineSlot, StorageItem, SlotSize, Supplier } from './types';
 
 // 4행 × 3열 = 12슬롯
 // row 0,1 = small / row 2,3 = large
@@ -40,7 +40,12 @@ export function stockMachine(
 
   const slot = machine[slotIndex];
   if (slot.size !== productSize) {
-    return { machine, storage, error: `Slot is ${slot.size} but product is ${productSize}` };
+    const validRows = productSize === 'small' ? '0 또는 1' : '2 또는 3';
+    return {
+      machine,
+      storage,
+      error: `[${row}행,${col}열] 슬롯은 ${slot.size}(${slot.size === 'small' ? '소형' : '대형'})인데 ${productName}은(는) ${productSize}(${productSize === 'small' ? '소형' : '대형'}) 상품입니다. ${productSize === 'small' ? '소형' : '대형'} 상품은 ${validRows}행에 넣으세요.`,
+    };
   }
 
   // 이미 다른 상품이 있으면
@@ -107,8 +112,20 @@ export function machineInventorySummary(machine: MachineSlot[]): string {
   return lines.join('\n');
 }
 
-// 창고 요약 텍스트
-export function storageSummary(storage: StorageItem[]): string {
+// 창고 요약 텍스트 — 상품별 size를 공급업체 카탈로그에서 조회해 함께 표시.
+// size를 몰라 잘못된 슬롯에 재입고 시도하는 사고를 막기 위해 size와 유효한 행을 명시.
+export function storageSummary(storage: StorageItem[], suppliers?: Supplier[]): string {
   if (storage.length === 0) return 'Storage is empty.';
-  return storage.map(s => `${s.productName}: ${s.quantity} units`).join('\n');
+  return storage.map(s => {
+    let size: SlotSize | undefined;
+    if (suppliers) {
+      for (const sup of suppliers) {
+        const cat = sup.catalog.find(p => p.productName === s.productName);
+        if (cat) { size = cat.size; break; }
+      }
+    }
+    if (!size) return `${s.productName}: ${s.quantity} units`;
+    const rowHint = size === 'small' ? 'row 0-1' : 'row 2-3';
+    return `${s.productName}: ${s.quantity} units (${size}, ${rowHint})`;
+  }).join('\n');
 }
