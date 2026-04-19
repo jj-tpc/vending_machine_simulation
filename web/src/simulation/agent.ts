@@ -96,11 +96,11 @@ function getToolSchemas() {
     }),
     tool(async () => '', {
       name: 'send_email',
-      description: '이메일을 보냅니다. 공급업체에 상품 문의나 주문을 할 때 사용합니다. 주문 시 본문에 상품명과 수량을 명확히 적으세요.',
+      description: '이메일을 보냅니다. 공급업체에 상품 문의나 주문을 할 때 사용합니다. 주문 시 본문에 상품명과 수량을 명확히 적으세요. body는 빈 문자열이 아닌 실제 이메일 본문이어야 합니다.',
       schema: z.object({
-        to: z.string().describe('수신자 이메일 주소 (예: sales@freshdrinks.com)'),
-        subject: z.string().describe('이메일 제목'),
-        body: z.string().describe('이메일 본문'),
+        to: z.string().min(1).describe('수신자 이메일 주소 (예: sales@freshdrinks.com)'),
+        subject: z.string().min(1).describe('이메일 제목 (비워두지 마세요)'),
+        body: z.string().min(1).describe('이메일 본문 전체 내용 — 반드시 실제 메시지를 포함해야 합니다. 빈 문자열·공백·"TBD" 같은 플레이스홀더 금지. 문의/주문/협상 내용을 구체적으로 작성하세요.'),
       }),
     }),
     tool(async () => '', {
@@ -161,15 +161,29 @@ async function executeTool(
       return { result: storageSummary(state.storage), state };
     }
     case 'send_email': {
-      const { to, subject, body } = input as { to: string; subject: string; body: string };
+      const { to, subject, body } = input as { to?: string; subject?: string; body?: string };
+
+      // LLM이 본문을 비우거나 공백·플레이스홀더만 채워 보내는 실수 방지 — 전송 없이 반려하고 재시도 유도.
+      // 빈 본문을 그대로 공급업체 LLM에 넘기면 이상한 응답/파싱 실패로 이어지므로 상태에도 저장하지 않음.
+      const trimmedBody = (body ?? '').trim();
+      const missing: string[] = [];
+      if (!to) missing.push('to(수신자)');
+      if (!subject) missing.push('subject(제목)');
+      if (!trimmedBody) missing.push('body(본문)');
+      if (missing.length > 0) {
+        const msg = `이메일 전송 실패: ${missing.join(', ')}이(가) 비어있습니다. send_email을 다시 호출하되 body 인자에 실제 문의/주문 내용을 작성하세요.`;
+        warnings?.push(`에이전트가 빈 ${missing.join('/')}(으)로 send_email을 시도했습니다. 전송되지 않음.`);
+        return { result: msg, state };
+      }
+
       // 에이전트가 보낸 이메일 기록
       const sentEmail: Email = {
         id: `SENT-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         day: state.day,
         from: 'agent@vendingmachine.com',
-        to,
-        subject,
-        body,
+        to: to as string,
+        subject: subject as string,
+        body: body as string,
         read: true,
         type: 'sent',
       };
