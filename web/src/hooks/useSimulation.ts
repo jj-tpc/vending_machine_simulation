@@ -19,6 +19,11 @@ const DEFAULT_MODELS: Record<LlmVendor, ModelInfo[]> = {
     { id: 'gpt-5.2', name: 'GPT-5.2', createdAt: '' },
     { id: 'gpt-5.2-nano', name: 'GPT-5.2 Nano', createdAt: '' },
     { id: 'gpt-5-mini', name: 'GPT-5 Mini', createdAt: '' },
+    { id: 'gpt-4o', name: 'GPT-4o', createdAt: '' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', createdAt: '' },
+    { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', createdAt: '' },
+    { id: 'gpt-4.1-nano', name: 'GPT-4.1 Nano', createdAt: '' },
+    { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', createdAt: '' },
   ],
   gemini: [
     { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro (Preview)', createdAt: '' },
