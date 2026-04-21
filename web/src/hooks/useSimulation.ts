@@ -1,32 +1,36 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { SimulationState, TurnLog, TurnResponse, StartResponse, ModelInfo, LlmVendor, Difficulty } from '@/simulation/types';
 import { DEFAULT_AGENT_PROMPT } from '@/simulation/agent';
 import { DEFAULT_DIFFICULTY } from '@/simulation/difficulty';
 
 const DEFAULT_MODELS: Record<LlmVendor, ModelInfo[]> = {
   anthropic: [
-    { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', createdAt: '' },
-    { id: 'claude-haiku-4-20250414', name: 'Claude Haiku 4', createdAt: '' },
+    { id: 'claude-opus-4-7', name: 'Claude Opus 4.7', createdAt: '' },
+    { id: 'claude-opus-4-6', name: 'Claude Opus 4.6', createdAt: '' },
+    { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', createdAt: '' },
+    { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5', createdAt: '' },
   ],
   openai: [
-    { id: 'gpt-4o', name: 'GPT-4o', createdAt: '' },
-    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', createdAt: '' },
-    { id: 'gpt-4.1', name: 'GPT-4.1', createdAt: '' },
-    { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', createdAt: '' },
+    { id: 'gpt-5.4', name: 'GPT-5.4', createdAt: '' },
+    { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini', createdAt: '' },
+    { id: 'gpt-5.4-nano', name: 'GPT-5.4 Nano', createdAt: '' },
+    { id: 'gpt-5.2', name: 'GPT-5.2', createdAt: '' },
+    { id: 'gpt-5.2-nano', name: 'GPT-5.2 Nano', createdAt: '' },
+    { id: 'gpt-5-mini', name: 'GPT-5 Mini', createdAt: '' },
   ],
   gemini: [
-    { id: 'gemini-2.5-pro-preview-05-06', name: 'Gemini 2.5 Pro', createdAt: '' },
-    { id: 'gemini-2.5-flash-preview-04-17', name: 'Gemini 2.5 Flash', createdAt: '' },
-    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', createdAt: '' },
+    { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro (Preview)', createdAt: '' },
+    { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash (Preview)', createdAt: '' },
+    { id: 'gemini-3.1-flash-lite-preview', name: 'Gemini 3.1 Flash Lite (Preview)', createdAt: '' },
   ],
 };
 
 const DEFAULT_MODEL: Record<LlmVendor, string> = {
-  anthropic: 'claude-sonnet-4-20250514',
-  openai: 'gpt-4o',
-  gemini: 'gemini-2.5-flash-preview-04-17',
+  anthropic: 'claude-sonnet-4-6',
+  openai: 'gpt-5.4',
+  gemini: 'gemini-3-flash-preview',
 };
 
 export interface LoadingStep {
@@ -126,39 +130,6 @@ export function useSimulation(): UseSimulationReturn {
     setModels(DEFAULT_MODELS[v]);
     setSelectedModel(DEFAULT_MODEL[v]);
   }, []);
-
-  // API 키가 있을 때 Anthropic 모델 목록 동적 로드
-  useEffect(() => {
-    if (vendor !== 'anthropic' || !apiKey) {
-      setModels(DEFAULT_MODELS[vendor]);
-      return;
-    }
-
-    let cancelled = false;
-    async function fetchModels() {
-      setModelsLoading(true);
-      try {
-        const res = await fetch('/api/models', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ vendor, apiKey }),
-        });
-        const data = await res.json();
-        if (!cancelled && data.models && data.models.length > 0) {
-          setModels(data.models);
-          if (!data.models.find((m: ModelInfo) => m.id === selectedModel)) {
-            setSelectedModel(data.models[0].id);
-          }
-        }
-      } catch {
-        if (!cancelled) setModels(DEFAULT_MODELS[vendor]);
-      } finally {
-        if (!cancelled) setModelsLoading(false);
-      }
-    }
-    fetchModels();
-    return () => { cancelled = true; };
-  }, [vendor, apiKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startSimulation = useCallback(async (maxDays: number = 30, startDate?: string) => {
     setIsLoading(true);
