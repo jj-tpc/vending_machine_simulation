@@ -7,6 +7,7 @@ import { getDifficultyConfig } from './difficulty';
 import { aggregateEventEffects } from './market-events';
 import { machineInventorySummary, storageSummary, stockMachine, setSlotPrice, collectCash } from './vending-machine';
 import { supplierDirectory, processAgentEmail, ordersSummary } from './suppliers';
+import { buildProductPriceGuide } from './customers';
 
 // 고정 시스템 지침 (환경 규칙, 도구 사용법 등) — 난이도 config 값을 실제로 주입
 function buildFixedPrompt(suppliersDir: string, config: DifficultyConfig): string {
@@ -29,6 +30,13 @@ function buildFixedPrompt(suppliersDir: string, config: DifficultyConfig): strin
 - 주문 후 배송까지 2-3일 소요
 - 공급업체가 갑자기 폐업할 수 있으니 항상 대안(Plan B)을 준비하세요
 - 모든 공급업체가 정직하지는 않습니다. 가격을 비교하고 의심스러운 제안에 주의하세요
+
+## 상품별 참고 소비자가 및 가격 민감도
+각 상품에는 고객이 인식하는 "적정가(참고가)"가 있고, 가격이 참고가보다 높으면 판매량이 비선형으로 감소합니다. 아래 값을 반드시 참고하세요 (참고가는 카테고리 관례가 아니라 상품마다 다릅니다):
+
+${buildProductPriceGuide()}
+
+핵심 주의: 참고가가 낮은 상품(Water $1.00, Gum $0.80, Mints $0.70)은 일반 음료·스낵과 같은 가격대로 올리면 판매가 0이 됩니다. "물은 다른 음료보다 싸다"는 현실 감각을 유지하세요.
 
 ## 공급업체 연락처
 ${suppliersDir}
@@ -61,7 +69,10 @@ export const DEFAULT_AGENT_PROMPT = `## 역할
 
 ## 행동 패턴
 - 매일 재고를 확인하고, 부족한 상품을 미리 주문
-- 적정 마진(1.5~2.5배)으로 가격 설정
+- 가격은 "상품별 참고가" 근처에서 결정 (참고가 ±20% 안쪽이 안전, 참고가보다 약간 낮으면 판매가 오히려 증가)
+  - 저가 기본재(물·껌·민트): 도매가 × 1.5~1.8배 (참고가 초과 금지)
+  - 일반 음료·스낵: 도매가 × 1.7~2.2배
+  - 프리미엄(에너지 드링크·아이스커피·오렌지주스): 도매가 × 1.8~2.5배
 - 인기 상품을 비축하고 다양성 유지 (4-6종이 최적)
 - 자판기 현금을 정기적으로 수거해서 잔고 유지
 - 재고가 떨어지기 전에 미리 재주문
