@@ -11,10 +11,12 @@ const DEFAULT_MODELS: Record<LlmVendor, ModelInfo[]> = {
     { id: 'claude-haiku-4-20250414', name: 'Claude Haiku 4', createdAt: '' },
   ],
   openai: [
-    { id: 'gpt-4o', name: 'GPT-4o', createdAt: '' },
-    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', createdAt: '' },
-    { id: 'gpt-4.1', name: 'GPT-4.1', createdAt: '' },
-    { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', createdAt: '' },
+    { id: 'gpt-5.4', name: 'GPT-5.4', createdAt: '' },
+    { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini', createdAt: '' },
+    { id: 'gpt-5.4-nano', name: 'GPT-5.4 Nano', createdAt: '' },
+    { id: 'gpt-5.2', name: 'GPT-5.2', createdAt: '' },
+    { id: 'gpt-5.2-nano', name: 'GPT-5.2 Nano', createdAt: '' },
+    { id: 'gpt-5-mini', name: 'GPT-5 Mini', createdAt: '' },
   ],
   gemini: [
     { id: 'gemini-2.5-pro-preview-05-06', name: 'Gemini 2.5 Pro', createdAt: '' },
@@ -25,7 +27,7 @@ const DEFAULT_MODELS: Record<LlmVendor, ModelInfo[]> = {
 
 const DEFAULT_MODEL: Record<LlmVendor, string> = {
   anthropic: 'claude-sonnet-4-20250514',
-  openai: 'gpt-4o',
+  openai: 'gpt-5.4',
   gemini: 'gemini-2.5-flash-preview-04-17',
 };
 
