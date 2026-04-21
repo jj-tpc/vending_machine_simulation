@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { SimulationState, TurnLog, TurnResponse, StartResponse, ModelInfo, LlmVendor, Difficulty } from '@/simulation/types';
 import { DEFAULT_AGENT_PROMPT } from '@/simulation/agent';
 import { DEFAULT_DIFFICULTY } from '@/simulation/difficulty';
 
 const DEFAULT_MODELS: Record<LlmVendor, ModelInfo[]> = {
   anthropic: [
-    { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', createdAt: '' },
-    { id: 'claude-haiku-4-20250414', name: 'Claude Haiku 4', createdAt: '' },
+    { id: 'claude-opus-4-7', name: 'Claude Opus 4.7', createdAt: '' },
+    { id: 'claude-opus-4-6', name: 'Claude Opus 4.6', createdAt: '' },
+    { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', createdAt: '' },
+    { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5', createdAt: '' },
   ],
   openai: [
     { id: 'gpt-5.4', name: 'GPT-5.4', createdAt: '' },
@@ -26,7 +28,7 @@ const DEFAULT_MODELS: Record<LlmVendor, ModelInfo[]> = {
 };
 
 const DEFAULT_MODEL: Record<LlmVendor, string> = {
-  anthropic: 'claude-sonnet-4-20250514',
+  anthropic: 'claude-sonnet-4-6',
   openai: 'gpt-5.4',
   gemini: 'gemini-3-flash-preview',
 };
@@ -128,39 +130,6 @@ export function useSimulation(): UseSimulationReturn {
     setModels(DEFAULT_MODELS[v]);
     setSelectedModel(DEFAULT_MODEL[v]);
   }, []);
-
-  // API 키가 있을 때 Anthropic 모델 목록 동적 로드
-  useEffect(() => {
-    if (vendor !== 'anthropic' || !apiKey) {
-      setModels(DEFAULT_MODELS[vendor]);
-      return;
-    }
-
-    let cancelled = false;
-    async function fetchModels() {
-      setModelsLoading(true);
-      try {
-        const res = await fetch('/api/models', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ vendor, apiKey }),
-        });
-        const data = await res.json();
-        if (!cancelled && data.models && data.models.length > 0) {
-          setModels(data.models);
-          if (!data.models.find((m: ModelInfo) => m.id === selectedModel)) {
-            setSelectedModel(data.models[0].id);
-          }
-        }
-      } catch {
-        if (!cancelled) setModels(DEFAULT_MODELS[vendor]);
-      } finally {
-        if (!cancelled) setModelsLoading(false);
-      }
-    }
-    fetchModels();
-    return () => { cancelled = true; };
-  }, [vendor, apiKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startSimulation = useCallback(async (maxDays: number = 30, startDate?: string) => {
     setIsLoading(true);
