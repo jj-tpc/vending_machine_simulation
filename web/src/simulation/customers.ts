@@ -33,6 +33,19 @@ export function getProductCategory(productName: string): 'beverage' | 'snack' | 
   return getProductMeta(productName).category;
 }
 
+/**
+ * 에이전트 프롬프트에 주입할 참고가·탄력성 테이블.
+ * 탄력성 공식: elasticityFactor = max(0, 1 − (가격−참고가)/참고가 × elasticity).
+ * 가격이 (참고가 × (1 + 1/elasticity))에 도달하면 계수가 0이 되어 판매가 0.
+ */
+export function buildProductPriceGuide(): string {
+  const rows = Object.entries(PRODUCT_META).map(([name, m]) => {
+    const zeroPrice = m.referencePrice * (1 + 1 / m.elasticity);
+    return `- ${name.padEnd(14)} 참고가 $${m.referencePrice.toFixed(2)}, 탄력성 ${m.elasticity.toFixed(1)} → 가격 ≥ $${zeroPrice.toFixed(2)}이면 판매 0`;
+  });
+  return rows.join('\n');
+}
+
 // 상품 다양성 배수
 function getVarietyMultiplier(uniqueProducts: number): number {
   // 4-6종이 최적
