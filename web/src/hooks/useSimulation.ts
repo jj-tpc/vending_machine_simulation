@@ -19,16 +19,16 @@ const DEFAULT_MODELS: Record<LlmVendor, ModelInfo[]> = {
     { id: 'gpt-5-mini', name: 'GPT-5 Mini', createdAt: '' },
   ],
   gemini: [
-    { id: 'gemini-2.5-pro-preview-05-06', name: 'Gemini 2.5 Pro', createdAt: '' },
-    { id: 'gemini-2.5-flash-preview-04-17', name: 'Gemini 2.5 Flash', createdAt: '' },
-    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', createdAt: '' },
+    { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro (Preview)', createdAt: '' },
+    { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash (Preview)', createdAt: '' },
+    { id: 'gemini-3.1-flash-lite-preview', name: 'Gemini 3.1 Flash Lite (Preview)', createdAt: '' },
   ],
 };
 
 const DEFAULT_MODEL: Record<LlmVendor, string> = {
   anthropic: 'claude-sonnet-4-20250514',
   openai: 'gpt-5.4',
-  gemini: 'gemini-2.5-flash-preview-04-17',
+  gemini: 'gemini-3-flash-preview',
 };
 
 export interface LoadingStep {
